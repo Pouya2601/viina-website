@@ -126,6 +126,64 @@ now sees the same content your admin panel saved to Supabase.
 
 ---
 
+## Troubleshooting: "my admin changes don't save / the site doesn't change"
+
+If you followed steps 1–3 and edits in the admin panel don't stick,
+**log into the admin panel and look at the top bar** — as of this
+version, it actively tells you what's wrong:
+
+- A small **"در حال ذخیره…" / "ذخیره شد"** indicator appears next to
+  the bell icon every time something saves.
+- If saving is actually failing, a **red banner** appears right below
+  the top bar with the exact error message from Supabase, plus the
+  most common causes. This is the single most useful thing to check
+  first — the message tells you exactly which of the causes below it is.
+
+Walk through these in order — in practice it is almost always #1 or #2:
+
+1. **You added the Netlify environment variables but never redeployed.**
+   Environment variables only take effect on the *next* build, not the
+   one that's currently live. After adding/editing them: Netlify →
+   **Deploys → Trigger deploy → Deploy site**. This is the single most
+   common cause of "everything looks right but nothing saves."
+
+2. **`supabase/schema.sql` was never run** (or was run against a
+   different Supabase project than the one your env vars point to).
+   Without it, the `site_content` table doesn't exist and every save
+   fails. Go to Supabase → **SQL Editor** and confirm you ran it —
+   error message would mention `relation "site_content" does not exist`.
+
+3. **Wrong values in `VITE_SUPABASE_URL` / `VITE_SUPABASE_ANON_KEY`.**
+   Double-check both against Supabase → **Settings → API** — a typo'd
+   URL or key produces errors like `Failed to fetch` or `Invalid API key`.
+   Also confirm there's no extra space or quote mark pasted in by
+   accident, and that you used the **anon / public** key, not
+   `service_role`.
+
+4. **You're not actually signed in as an admin**, or your Supabase
+   Auth user was never created / isn't confirmed. Writes require an
+   `authenticated` session (see the RLS policy in `schema.sql`) — if
+   login itself silently fails, so will every save afterward. Go to
+   Supabase → **Authentication → Users** and confirm your user exists
+   and **Email Confirmed** is checked (or re-create it with **Auto
+   Confirm User** turned on).
+
+5. **The RLS policies weren't created**, or were edited/removed after
+   running the schema. In Supabase, go to **Table Editor → site_content
+   → RLS policies** and confirm both `"Public can read site content"`
+   and `"Only signed-in admins can write site content"` are listed and
+   enabled. The error message for this case specifically says
+   `new row violates row-level security policy`.
+
+6. **You're looking at a cached page.** After confirming a save
+   succeeded (green "ذخیره شد"), do a hard refresh (Ctrl/Cmd+Shift+R)
+   on the storefront tab, since some browsers aggressively cache a
+   single-page app's JS bundle.
+
+If the red banner shows an error message not covered above, that exact
+message is the fastest way to search Supabase's docs/Discord for the
+specific fix.
+
 ## How content sync works (for reference)
 
 - Every admin-editable section (products, categories, theme, header,
