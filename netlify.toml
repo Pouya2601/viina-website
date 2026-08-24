@@ -1,0 +1,12 @@
+[build]
+  command = "npm run build"
+  publish = "dist"
+
+# The app's own routing (#/admin, #/page/<slug>, #/category/<slug>, ...)
+# is hash-based, so the browser never asks the server for those paths —
+# it only ever requests the site root. This redirect is just a safety
+# net for any other path someone might type directly.
+[[redirects]]
+  from = "/*"
+  to = "/index.html"
+  status = 200
