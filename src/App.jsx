@@ -339,6 +339,23 @@ function buildProductAltText(p, categories) {
    handled by real Supabase Auth, never by a row a visitor could read
    with the public anon key).
 ================================================================= */
+/* Tiny pub/sub so any component (the save-status indicator in the
+   admin header) can react to every Supabase write, without having to
+   thread a callback prop through all 23 useSyncedState(...) call
+   sites individually. */
+const saveStatusListeners = new Set();
+function publishSaveStatus(status) {
+  saveStatusListeners.forEach((fn) => fn(status));
+}
+function useSaveStatus() {
+  const [status, setStatus] = useState({ state: "idle" });
+  useEffect(() => {
+    saveStatusListeners.add(setStatus);
+    return () => saveStatusListeners.delete(setStatus);
+  }, []);
+  return status;
+}
+
 async function fetchAllSiteContent() {
   const map = {};
   try {
@@ -356,19 +373,53 @@ async function fetchAllSiteContent() {
    initial value from the bulk fetch above (so there's no flash of
    default content) and debounce-saves every change back to its own
    `site_content` row. The very first write (the initial hydration) is
-   skipped so loading data never immediately re-triggers a save. */
+   skipped so loading data never immediately re-triggers a save.
+   Every save attempt is also broadcast via publishSaveStatus() so a
+   failure (bad RLS policy, missing table, wrong env vars, ...) shows
+   up as a visible banner in the admin panel instead of only a
+   console.error nobody sees. */
 function useSyncedState(key, initialValue) {
   const [value, setValue] = useState(initialValue);
   const skipNextSave = useRef(true);
   useEffect(() => {
     if (skipNextSave.current) { skipNextSave.current = false; return; }
+    publishSaveStatus({ state: "saving" });
     const t = setTimeout(() => {
-      supabase.from("site_content").upsert({ id: key, data: value, updated_at: new Date().toISOString() })
-        .then(({ error }) => { if (error) console.error(`VIINA: could not save "${key}" to Supabase.`, error); });
+      supabase.from("site_content")
+        .upsert({ id: key, data: value, updated_at: new Date().toISOString() }, { onConflict: "id" })
+        .then(({ error }) => {
+          if (error) {
+            console.error(`VIINA: could not save "${key}" to Supabase.`, error);
+            publishSaveStatus({ state: "error", key, message: error.message });
+          } else {
+            publishSaveStatus({ state: "saved", key });
+          }
+        });
     }, 600); /* debounced so fast typing doesn't fire a write per keystroke */
     return () => clearTimeout(t);
   }, [key, value]);
   return [value, setValue];
+}
+
+/* Runs once when the admin dashboard mounts: writes then reads back a
+   throwaway row, so a broken Supabase setup (env vars not applied,
+   schema.sql never run, wrong/expired API key, an RLS policy that
+   doesn't actually match "authenticated") surfaces immediately as a
+   clear, specific error — instead of the admin only discovering it
+   later as "my edits silently don't stick". */
+async function checkSupabaseWriteAccess() {
+  try {
+    const probeId = "__health_check__";
+    const { error: writeError } = await supabase
+      .from("site_content")
+      .upsert({ id: probeId, data: { ok: true, at: Date.now() }, updated_at: new Date().toISOString() }, { onConflict: "id" });
+    if (writeError) return { ok: false, message: writeError.message };
+    const { error: readError } = await supabase.from("site_content").select("id").eq("id", probeId).maybeSingle();
+    if (readError) return { ok: false, message: readError.message };
+    return { ok: true };
+  } catch (err) {
+    return { ok: false, message: err.message || "خطای ناشناخته در اتصال به Supabase" };
+  }
 }
 
 const DEFAULT_CUSTOM_PAGES = [
@@ -4616,6 +4667,16 @@ function AdminDashboard({
 }) {
   const p = ADMIN_PALETTE;
   const [tab, setTab] = useState("overview");
+  const saveStatus = useSaveStatus();
+  const [dbHealth, setDbHealth] = useState({ state: "checking" }); // checking | ok | error
+  useEffect(() => {
+    let cancelled = false;
+    checkSupabaseWriteAccess().then((result) => {
+      if (cancelled) return;
+      setDbHealth(result.ok ? { state: "ok" } : { state: "error", message: result.message });
+    });
+    return () => { cancelled = true; };
+  }, []);
   const [orders, setOrders] = useState([]);
   const [orderFilter, setOrderFilter] = useState("همه");
   const [openOrder, setOpenOrder] = useState(null);
@@ -4860,6 +4921,21 @@ function AdminDashboard({
             <p style={{ fontFamily: "'Noto Serif Arabic', serif", fontSize: 19, color: p.ink }} className="truncate">{NAV_ITEMS.find((n) => n.key === tab)?.label}</p>
           </div>
           <div className="flex items-center gap-3 shrink-0">
+            {saveStatus.state === "saving" && (
+              <span className="hidden sm:flex items-center gap-1.5 text-xs" style={{ color: p.inkSoft }}>
+                <span className="w-3 h-3 rounded-full border-2 animate-spin" style={{ borderColor: p.beige, borderTopColor: p.sageDeep }} /> در حال ذخیره در دیتابیس…
+              </span>
+            )}
+            {saveStatus.state === "saved" && (
+              <span className="hidden sm:flex items-center gap-1.5 text-xs" style={{ color: p.sageDeep }}>
+                <CheckCircle2 size={14} /> ذخیره شد
+              </span>
+            )}
+            {saveStatus.state === "error" && (
+              <span className="hidden sm:flex items-center gap-1.5 text-xs" style={{ color: "#A5453A" }}>
+                <AlertTriangle size={14} /> ذخیره‌سازی ناموفق بود
+              </span>
+            )}
             <div className="relative">
               <button onClick={() => setAlertsOpen((v) => !v)} className="relative p-2" aria-label="هشدارها">
                 <Bell size={18} style={{ color: p.inkSoft }} />
@@ -4879,6 +4955,23 @@ function AdminDashboard({
             <div className="w-9 h-9 rounded-full flex items-center justify-center" style={{ background: p.sageMist }}><User size={16} style={{ color: p.sageDeep }} /></div>
           </div>
         </div>
+
+        {dbHealth.state === "error" && (
+          <div className="flex items-start gap-3 px-5 md:px-8 py-3 no-print" style={{ background: "#4A1F1F" }}>
+            <AlertTriangle size={16} style={{ color: "#E88" }} className="mt-0.5 shrink-0" />
+            <div>
+              <p style={{ fontSize: 13, color: "#F3D5D5", fontWeight: 600 }}>تغییرات شما در حال حاضر در دیتابیس ذخیره نمی‌شود.</p>
+              <p style={{ fontSize: 12, color: "#E8C4C4" }} className="mt-0.5">پیام خطا: <span dir="ltr" className="inline-block">{dbHealth.message}</span></p>
+              <p style={{ fontSize: 11.5, color: "#E8C4C4" }} className="mt-1">علت رایج: متغیرهای محیطی Netlify اشتباه/ناقص هستند، اسکریپت schema.sql هنوز روی Supabase اجرا نشده، یا بعد از افزودن متغیرهای محیطی دوباره Deploy نکرده‌اید. جزئیات کامل در README.md بخش «عیب‌یابی».</p>
+            </div>
+          </div>
+        )}
+        {saveStatus.state === "error" && dbHealth.state !== "error" && (
+          <div className="flex items-center gap-2 px-5 md:px-8 py-2.5 no-print" style={{ background: "#4A1F1F" }}>
+            <AlertTriangle size={14} style={{ color: "#E88" }} />
+            <p style={{ fontSize: 12, color: "#F3D5D5" }}>ذخیره «{saveStatus.key}» ناموفق بود: <span dir="ltr">{saveStatus.message}</span></p>
+          </div>
+        )}
 
         <div className="px-5 md:px-8 py-7 max-w-7xl">
           {tab === "overview" && <OverviewTab products={products} categories={categories} orders={orders} currencySettings={currencySettings} onQuickAdd={openAdd} onQuickCoupon={() => setCouponModalOpen(true)} onExportReport={exportSalesReport} />}
