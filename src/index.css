@@ -1,0 +1,26 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+html,
+body,
+#root {
+  height: 100%;
+}
+
+body {
+  margin: 0;
+}
+
+/* Defensive guard: this project never opts into Netlify Forms or the
+   Netlify Identity widget (no `data-netlify`/`netlify` attributes on
+   any <form>, and index.html loads no Netlify script), so nothing
+   here should ever render. These rules just make sure that if a
+   "Powered by Netlify" form badge or the Identity widget ever gets
+   added later, it stays hidden instead of floating over the site. */
+.netlify-badge,
+#netlify-identity-widget,
+[class*="netlify-badge"],
+iframe[src*="netlify"] {
+  display: none !important;
+}
