@@ -53,3 +53,42 @@ drop trigger if exists touch_site_content on public.site_content;
 create trigger touch_site_content
   before update on public.site_content
   for each row execute function public.touch_site_content_updated_at();
+
+-- ============================================================
+-- Storage bucket for product/banner/hero images uploaded from the
+-- Admin Panel (see uploadProductImage() in src/App.jsx). Public so
+-- the resulting URLs work for every visitor, same read/write split
+-- as site_content: anyone can view images, only a signed-in admin
+-- can upload/replace/delete them.
+-- ============================================================
+insert into storage.buckets (id, name, public)
+values ('products', 'products', true)
+on conflict (id) do update set public = true;
+
+drop policy if exists "Public can view product images" on storage.objects;
+create policy "Public can view product images"
+  on storage.objects
+  for select
+  to anon, authenticated
+  using (bucket_id = 'products');
+
+drop policy if exists "Only signed-in admins can upload product images" on storage.objects;
+create policy "Only signed-in admins can upload product images"
+  on storage.objects
+  for insert
+  to authenticated
+  with check (bucket_id = 'products');
+
+drop policy if exists "Only signed-in admins can update product images" on storage.objects;
+create policy "Only signed-in admins can update product images"
+  on storage.objects
+  for update
+  to authenticated
+  using (bucket_id = 'products');
+
+drop policy if exists "Only signed-in admins can delete product images" on storage.objects;
+create policy "Only signed-in admins can delete product images"
+  on storage.objects
+  for delete
+  to authenticated
+  using (bucket_id = 'products');
