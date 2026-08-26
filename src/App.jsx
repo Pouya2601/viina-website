@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useRef, useMemo } from "react";
+import { BrowserRouter, Routes, Route, Navigate, useLocation, useNavigate, useParams, Link } from "react-router-dom";
 import { supabase } from "./lib/supabaseClient";
 import {
   Search, User, ShoppingBag, X, Plus, Minus, Star, ChevronDown, ChevronUp,
@@ -378,6 +379,15 @@ async function fetchAllSiteContent() {
    failure (bad RLS policy, missing table, wrong env vars, ...) shows
    up as a visible banner in the admin panel instead of only a
    console.error nobody sees. */
+/* Coerces any value that's supposed to be an array (but might come
+   back from Supabase as null, {}, or some other corrupted shape) into
+   a real array, so every .map()/.filter() downstream is guaranteed
+   safe — this is the single choke point that prevents "Cannot read
+   properties of undefined (reading 'map')" for every list in the app. */
+function asArray(x) {
+  return Array.isArray(x) ? x : [];
+}
+
 function useSyncedState(key, initialValue) {
   const [value, setValue] = useState(initialValue);
   const skipNextSave = useRef(true);
@@ -419,6 +429,29 @@ async function checkSupabaseWriteAccess() {
     return { ok: true };
   } catch (err) {
     return { ok: false, message: err.message || "خطای ناشناخته در اتصال به Supabase" };
+  }
+}
+
+/* Uploads a File directly to the Supabase Storage "products" bucket
+   and returns its public HTTPS URL — this is what the admin's image
+   fields actually save to the database, instead of a local blob:
+   URL (which only ever works in the uploading browser's own tab) or
+   a bare filename string (which isn't a usable image reference at
+   all). See supabase/schema.sql for the bucket + storage policies
+   this depends on. */
+async function uploadProductImage(file) {
+  if (!file) return { url: null, error: "فایلی انتخاب نشده است." };
+  if (!file.type || !file.type.startsWith("image/")) return { url: null, error: "فقط فایل تصویری مجاز است." };
+  if (file.size > 5 * 1024 * 1024) return { url: null, error: "حجم تصویر نباید بیشتر از ۵ مگابایت باشد." };
+  const ext = (file.name.split(".").pop() || "jpg").toLowerCase().replace(/[^a-z0-9]/g, "") || "jpg";
+  const path = `${Date.now()}-${Math.random().toString(36).slice(2, 8)}.${ext}`;
+  try {
+    const { error: uploadError } = await supabase.storage.from("products").upload(path, file, { cacheControl: "3600", upsert: false });
+    if (uploadError) return { url: null, error: uploadError.message };
+    const { data } = supabase.storage.from("products").getPublicUrl(path);
+    return { url: data?.publicUrl || null, error: data?.publicUrl ? null : "دریافت آدرس عمومی تصویر ناموفق بود." };
+  } catch (err) {
+    return { url: null, error: err.message || "آپلود تصویر با خطا مواجه شد." };
   }
 }
 
@@ -556,6 +589,25 @@ function useDragScroll() {
   }, []);
   return ref;
 }
+/* Any stored href can be: a same-page anchor (#shop), an external URL,
+   a real internal path (/page/x), or — from data saved before this
+   project moved off hash-routing — an old-style "#/page/x" hash path.
+   This picks the right rendering for each so nothing in an existing
+   Supabase database breaks after the upgrade. */
+function resolveNavHref(href) {
+  if (!href) return href;
+  const legacyMatch = href.match(/^#\/(page|category)\/(.+)$/);
+  if (legacyMatch) return `/${legacyMatch[1]}/${legacyMatch[2]}`;
+  return href;
+}
+function SmartNavLink({ href, children, ...rest }) {
+  const resolved = resolveNavHref(href);
+  if (resolved && resolved.startsWith("/") && !resolved.startsWith("//")) {
+    return <Link to={resolved} {...rest}>{children}</Link>;
+  }
+  return <a href={resolved} {...rest}>{children}</a>;
+}
+
 function Bottle({ tint, ink, white, label }) {
   return (
     <div className="relative flex flex-col items-center" style={{ filter: "drop-shadow(0 10px 18px rgba(43,38,32,0.15))" }} role={label ? "img" : undefined} aria-label={label || undefined} aria-hidden={label ? undefined : "true"}>
@@ -717,11 +769,146 @@ function WelcomeModal({ config, theme, onDismiss }) {
    loading state plays, then an illustrative mock report is shown
    along with a routine pulled from real store products. No real
    image analysis takes place. */
+/* ================================================================
+   Product Detail Page content — rendered inside <Storefront> (so it
+   shares the exact same persistent header/footer) whenever the route
+   is /product/:id. Guards every list it touches against
+   undefined/null (a product with no reviews yet, no ingredients
+   text, etc.) so a missing field never crashes the page. */
+function ProductDetailContent({ productId, products, categories, reviews, palette, fontDisplay, fmt, onAddToCart, navigate }) {
+  const [tab, setTab] = useState("specs");
+  const safeProducts = products || [];
+  const product = safeProducts.find((p) => String(p.id) === String(productId));
+
+  if (!product) {
+    return (
+      <section className="max-w-3xl mx-auto px-5 md:px-8 py-20 text-center min-h-[50vh]">
+        <p style={{ ...fontDisplay, fontSize: 22, color: palette.ink }} className="mb-3">این محصول پیدا نشد</p>
+        <p style={{ fontSize: 13.5, color: palette.inkSoft }} className="mb-6">ممکن است این محصول حذف شده یا آدرس اشتباه باشد.</p>
+        <button onClick={() => navigate("/")} className="rounded-full px-6 py-3 text-sm font-medium" style={{ background: palette.sageDeep, color: palette.white }}>بازگشت به فروشگاه</button>
+      </section>
+    );
+  }
+
+  const category = (categories || []).find((c) => c.id === product.category);
+  const productReviews = (reviews || []).filter((r) => String(r.product) === String(product.id) && r.status === "تأیید شده");
+  const related = safeProducts.filter((p) => p.id !== product.id && p.category === product.category).slice(0, 4);
+  const ingredientList = (product.ingredients || "").split(",").map((s) => s.trim()).filter(Boolean);
+  const specs = [
+    { label: "حجم", value: product.volume || "—" },
+    { label: "مناسب پوست", value: (product.skinTags || []).join("، ") || "—" },
+    { label: "دسته‌بندی", value: category ? category.name : "—" },
+    { label: "کد محصول (SKU)", value: product.sku || "—" },
+    { label: "وضعیت موجودی", value: product.stockStatus || "—" },
+  ];
+
+  return (
+    <section className="max-w-6xl mx-auto px-5 md:px-8 py-12 md:py-16">
+      <nav aria-label="مسیر صفحه" className="mb-8 text-xs" style={{ color: palette.inkSoft }}>
+        <Link to="/" className="hover:opacity-70">خانه</Link>
+        {category && (<> <ChevronRight size={11} className="inline mx-1" style={{ transform: "scaleX(-1)" }} /> <Link to={`/category/${category.slug || category.id}`} className="hover:opacity-70">{category.name}</Link></>)}
+        <ChevronRight size={11} className="inline mx-1" style={{ transform: "scaleX(-1)" }} /> <span style={{ color: palette.ink }}>{product.name}</span>
+      </nav>
+
+      <div className="grid md:grid-cols-2 gap-10 md:gap-14 mb-14">
+        <div className="rounded-3xl flex items-center justify-center" style={{ background: palette.creamDeep, minHeight: 320 }}>
+          <div className="scale-[2.2]"><Bottle tint={product.tint} ink={palette.ink} white={palette.white} label={buildProductAltText(product, categories)} /></div>
+        </div>
+        <div>
+          {product.tag && <span className="inline-flex items-center gap-1 rounded-full px-2.5 py-1 text-[10.5px] font-medium mb-3" style={{ background: `${palette.bronze}22`, color: palette.bronze }}><Sparkles size={10} />{product.tag}</span>}
+          <h1 style={{ ...fontDisplay, fontWeight: 500, color: palette.ink }} className="text-3xl md:text-4xl mb-3">{product.name}</h1>
+          {product.rating > 0 && (
+            <div className="flex items-center gap-2 mb-4">
+              <Stars rating={product.rating} color={palette.bronze} />
+              <span style={{ fontSize: 12.5, color: palette.inkSoft }}>({product.reviews || 0} نظر)</span>
+            </div>
+          )}
+          {product.shortDescription && <p style={{ color: palette.inkSoft, fontSize: 14.5 }} className="mb-5 leading-relaxed">{product.shortDescription}</p>}
+          <div className="flex items-center gap-3 mb-6">
+            <span style={{ ...fontDisplay, fontSize: 26, color: palette.ink }}>{fmt(product.salePrice || product.price)}</span>
+            {product.salePrice ? <span style={{ fontSize: 14, color: palette.inkSoft, textDecoration: "line-through" }}>{fmt(product.price)}</span> : null}
+          </div>
+          <button onClick={() => onAddToCart(product.id)} disabled={product.stockStatus === "ناموجود"} className="w-full sm:w-auto rounded-full px-8 py-3.5 text-sm font-medium disabled:opacity-50" style={{ background: palette.sageDeep, color: palette.white }}>
+            {product.stockStatus === "ناموجود" ? "ناموجود" : "افزودن به سبد خرید"}
+          </button>
+        </div>
+      </div>
+
+      <div className="border-b mb-8 flex items-center gap-6 overflow-x-auto" style={{ borderColor: palette.beige }}>
+        {[{ key: "specs", label: "مشخصات" }, { key: "reviews", label: `نظرات (${productReviews.length})` }, { key: "related", label: "محصولات مرتبط" }].map((t) => (
+          <button key={t.key} onClick={() => setTab(t.key)} className="pb-3 text-sm font-medium whitespace-nowrap border-b-2 transition-colors" style={{ borderColor: tab === t.key ? palette.sageDeep : "transparent", color: tab === t.key ? palette.ink : palette.inkSoft }}>
+            {t.label}
+          </button>
+        ))}
+      </div>
+
+      {tab === "specs" && (
+        <div className="max-w-2xl">
+          {product.description && <p style={{ color: palette.inkSoft, fontSize: 14, lineHeight: 2 }} className="mb-6">{product.description}</p>}
+          <div className="rounded-2xl overflow-hidden border" style={{ borderColor: palette.beige }}>
+            {specs.map((s, i) => (
+              <div key={s.label} className="flex items-center justify-between px-4 py-3 text-sm" style={{ background: i % 2 === 0 ? palette.creamDeep : "transparent" }}>
+                <span style={{ color: palette.inkSoft }}>{s.label}</span>
+                <span style={{ color: palette.ink, fontWeight: 500 }}>{s.value}</span>
+              </div>
+            ))}
+          </div>
+          {ingredientList.length > 0 && (
+            <div className="mt-6">
+              <p style={{ ...fontDisplay, fontSize: 15, color: palette.ink }} className="mb-2">ترکیبات</p>
+              <p style={{ color: palette.inkSoft, fontSize: 13, lineHeight: 1.9 }}>{ingredientList.join("، ")}</p>
+            </div>
+          )}
+        </div>
+      )}
+
+      {tab === "reviews" && (
+        <div className="max-w-2xl">
+          {productReviews.length === 0 ? (
+            <p style={{ fontSize: 13.5, color: palette.inkSoft }}>هنوز نظری برای این محصول ثبت نشده است.</p>
+          ) : (
+            <div className="flex flex-col gap-5">
+              {productReviews.map((r) => (
+                <div key={r.id} className="pb-5 border-b" style={{ borderColor: palette.beige }}>
+                  <div className="flex items-center justify-between mb-1.5">
+                    <span style={{ fontSize: 13.5, color: palette.ink, fontWeight: 600 }}>{r.name}</span>
+                    <Stars rating={Number(r.rating) || 0} size={12} color={palette.bronze} />
+                  </div>
+                  <p style={{ fontSize: 13, color: palette.inkSoft, lineHeight: 1.8 }}>{r.text}</p>
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
+      )}
+
+      {tab === "related" && (
+        related.length === 0 ? (
+          <p style={{ fontSize: 13.5, color: palette.inkSoft }}>محصول مرتبطی در همین دسته‌بندی یافت نشد.</p>
+        ) : (
+          <div className="grid grid-cols-2 md:grid-cols-4 gap-5">
+            {related.map((rp) => (
+              <Link key={rp.id} to={`/product/${rp.id}`} className="group block">
+                <div className="rounded-2xl flex items-center justify-center mb-3 transition-transform group-hover:scale-105" style={{ background: palette.creamDeep, height: 120 }}>
+                  <Bottle tint={rp.tint} ink={palette.ink} white={palette.white} label={buildProductAltText(rp, categories)} />
+                </div>
+                <p style={{ fontSize: 13, color: palette.ink }} className="truncate">{rp.name}</p>
+                <p style={{ fontSize: 12, color: palette.inkSoft }}>{fmt(rp.salePrice || rp.price)}</p>
+              </Link>
+            ))}
+          </div>
+        )
+      )}
+    </section>
+  );
+}
+
+
 function AiSkinScannerModal({ palette, headingFont, products, fmt, onAddToCart, onClose }) {
   const [step, setStep] = useState("start"); // start | analyzing | result
   const [previewSrc, setPreviewSrc] = useState("");
   const scores = { hydration: 62, oil: 45, redness: 30, wrinkles: 22 };
-  const suggested = products.slice(0, 3);
+  const suggested = (products || []).slice(0, 3);
 
   function handleFile(e) {
     const file = e.target.files && e.target.files[0];
@@ -850,7 +1037,8 @@ function AnimatedHeroImage({ src, width = 420, height = 420, palette, rounded = 
    whatever colors/fonts the admin Customizer currently has set.
 ================================================================== */
 
-function Storefront({ products, categories, reviews, currencySettings, theme, layout, header, announcement, footer, banner, homeSections, faqs, welcomeModal, cart, setCart, user, freeShipThreshold, ingredientLibrary, quizSettings, quizQuestions, quizResults, rewardsSettings, onOpenAdmin, onGoAuth, onGoCheckout, customPage, initialCategorySlug, customPages = [], bundles = [] }) {
+function Storefront({ products, categories, reviews, currencySettings, theme, layout, header, announcement, footer, banner, homeSections, faqs, welcomeModal, cart, setCart, user, freeShipThreshold, ingredientLibrary, quizSettings, quizQuestions, quizResults, rewardsSettings, onOpenAdmin, onGoAuth, onGoCheckout, customPage, initialCategorySlug, productId, customPages = [], bundles = [] }) {
+  const navigate = useNavigate();
   const palette = theme;
   const fontDisplay = { fontFamily: theme.headingFont };
   const fontBody = { fontFamily: theme.bodyFont };
@@ -886,7 +1074,7 @@ function Storefront({ products, categories, reviews, currencySettings, theme, la
     setActiveCategoryId(categories.find((c) => c.slug === initialCategorySlug)?.id || null);
   }, [initialCategorySlug, categories]);
   const activeCategory = categories.find((c) => c.id === activeCategoryId) || null;
-  function clearCategoryFilter() { window.location.hash = "shop"; setActiveCategoryId(null); }
+  function clearCategoryFilter() { navigate("/"); setActiveCategoryId(null); }
 
   /* "Shop by Skin Concern" filter — independent of the category/tag
      filters above, and combinable with them */
@@ -969,7 +1157,7 @@ function Storefront({ products, categories, reviews, currencySettings, theme, la
     upsertMetaTag("name", "twitter:title", pageTitle);
     upsertMetaTag("name", "twitter:description", pageDesc);
     if (ogImage) upsertMetaTag("name", "twitter:image", ogImage);
-    upsertLinkTag("canonical", `${siteUrl}/${typeof window !== "undefined" ? window.location.hash : ""}`);
+    upsertLinkTag("canonical", `${siteUrl}${typeof window !== "undefined" ? window.location.pathname : "/"}`);
 
     upsertJsonLd("ld-breadcrumb", {
       "@context": "https://schema.org",
@@ -1122,7 +1310,7 @@ function Storefront({ products, categories, reviews, currencySettings, theme, la
 
           <nav className="hidden lg:flex items-center gap-8" style={{ fontSize: 14 }}>
             {header.navLinks.map((l) => (
-              <a key={l.label} href={l.href} className="hover:opacity-60 transition-opacity" style={{ color: isTransparentHero ? palette.white : palette.inkSoft }}>{l.label}</a>
+              <SmartNavLink key={l.label} href={l.href} className="hover:opacity-60 transition-opacity" style={{ color: isTransparentHero ? palette.white : palette.inkSoft }}>{l.label}</SmartNavLink>
             ))}
           </nav>
 
@@ -1170,7 +1358,7 @@ function Storefront({ products, categories, reviews, currencySettings, theme, la
             {!user && (
               <button onClick={onGoAuth} className="self-start rounded-full px-4 py-2 text-xs font-medium mb-1" style={{ background: palette.sageDeep, color: palette.white }}>ورود / ثبت‌نام</button>
             )}
-            {header.navLinks.map((l) => <a key={l.label} href={l.href} onClick={() => setMenuOpen(false)} className="py-1.5 text-sm" style={{ color: palette.inkSoft }}>{l.label}</a>)}
+            {header.navLinks.map((l) => <SmartNavLink key={l.label} href={l.href} onClick={() => setMenuOpen(false)} className="py-1.5 text-sm" style={{ color: palette.inkSoft }}>{l.label}</SmartNavLink>)}
           </nav>
         )}
       </header>
@@ -1266,7 +1454,7 @@ function Storefront({ products, categories, reviews, currencySettings, theme, la
               return (
                 <div key={c.id} className={`break-inside-avoid mb-4 md:mb-5 ${offsetClass}`}>
                   <Reveal delay={i * 0.06}>
-                    <button onClick={() => { setFilter("همه"); if (c.slug) { window.location.hash = "/category/" + encodeURIComponent(c.slug); } setActiveCategoryId(c.id); document.getElementById("shop")?.scrollIntoView({ behavior: "smooth" }); }}
+                    <button onClick={() => { setFilter("همه"); if (c.slug) { navigate("/category/" + encodeURIComponent(c.slug)); } else { setActiveCategoryId(c.id); document.getElementById("shop")?.scrollIntoView({ behavior: "smooth" }); } }}
                       className={`group relative w-full ${heightClass} rounded-3xl overflow-hidden flex flex-col items-center justify-center gap-3 border transition-all duration-500 hover:-translate-y-1.5`}
                       style={{ borderColor: palette.beige, background: palette.white, boxShadow: `0 0 0 rgba(0,0,0,0)` }}>
                       <div className="absolute inset-0 transition-all duration-700 group-hover:scale-110 opacity-80" style={{ background: `linear-gradient(${150 + i * 20}deg, ${palette.creamDeep}, ${palette.sageMist})` }} />
@@ -1299,7 +1487,7 @@ function Storefront({ products, categories, reviews, currencySettings, theme, la
             return (
               <Reveal key={c.key} delay={i * 0.06}>
                 <button
-                  onClick={() => { setActiveConcern(c.key); setFilter("همه"); setActiveCategoryId(null); window.location.hash = "shop"; document.getElementById("shop")?.scrollIntoView({ behavior: "smooth" }); }}
+                  onClick={() => { setActiveConcern(c.key); setFilter("همه"); setActiveCategoryId(null); document.getElementById("shop")?.scrollIntoView({ behavior: "smooth" }); }}
                   className="group relative w-full h-44 md:h-52 rounded-3xl overflow-hidden flex flex-col items-center justify-center gap-3 border transition-all duration-500 hover:-translate-y-1.5"
                   style={{ borderColor: activeConcern === c.key ? palette.sageDeep : palette.beige, background: palette.white }}
                 >
@@ -1598,7 +1786,7 @@ function Storefront({ products, categories, reviews, currencySettings, theme, la
                         </div>
                         <div className="p-5 flex flex-col flex-1">
                           {p.tag && <span className="inline-flex items-center gap-1 rounded-full px-2.5 py-1 text-[10.5px] font-medium mb-2 self-start" style={{ background: `${palette.bronze}22`, color: palette.bronze, boxShadow: `0 0 14px ${palette.bronze}33` }}><Sparkles size={10} />{p.tag}</span>}
-                          <h3 style={{ ...fontDisplay, fontSize: 18, color: palette.ink }} className="mb-2 flex-1">{p.name}</h3>
+                          <Link to={`/product/${p.id}`} style={{ ...fontDisplay, fontSize: 18, color: palette.ink }} className="mb-2 flex-1 hover:opacity-70 transition-opacity block"><h3 style={{ margin: 0, fontSize: "inherit", fontFamily: "inherit", fontWeight: "inherit", color: "inherit" }}>{p.name}</h3></Link>
                           {layout.showRatings && p.reviews > 0 && (
                             <div className="flex items-center gap-1.5 mb-2">
                               <Stars rating={p.rating} color={palette.bronze} />
@@ -1748,7 +1936,7 @@ function Storefront({ products, categories, reviews, currencySettings, theme, la
           <div className="grid md:grid-cols-3 gap-6">
             {journalPages.map((pg, i) => (
               <Reveal key={pg.id} delay={i * 0.08}>
-                <a href={`#/page/${pg.slug}`} className="group block h-full" aria-label={`${pg.title} — مطالعه مقاله در ژورنال ${BRAND_NAME}`}>
+                <Link to={`/page/${pg.slug}`} className="group block h-full" aria-label={`${pg.title} — مطالعه مقاله در ژورنال ${BRAND_NAME}`}>
                   <article className="rounded-3xl overflow-hidden h-full" style={{ background: palette.white, border: `1px solid ${palette.beige}` }}>
                     <div className="h-36 relative overflow-hidden transition-transform duration-500 group-hover:scale-105" style={{ background: `linear-gradient(${130 + i * 30}deg, ${palette.sageMist}, ${palette.creamDeep})` }}>
                       <FileText size={28} className="absolute bottom-4 right-4" style={{ color: `${palette.sageDeep}AA` }} />
@@ -1759,7 +1947,7 @@ function Storefront({ products, categories, reviews, currencySettings, theme, la
                       <span className="inline-flex items-center gap-1 text-xs font-medium underline underline-offset-4" style={{ color: palette.sageDeep }}>ادامه مطلب <ChevronRight size={13} style={{ transform: "scaleX(-1)" }} /></span>
                     </div>
                   </article>
-                </a>
+                </Link>
               </Reveal>
             ))}
           </div>
@@ -1852,7 +2040,12 @@ function Storefront({ products, categories, reviews, currencySettings, theme, la
       {renderHeader()}
 
       <main>
-        {customPage ? (() => {
+        {productId ? (
+          <ProductDetailContent
+            productId={productId} products={products} categories={categories} reviews={reviews}
+            palette={palette} fontDisplay={fontDisplay} fmt={fmt} onAddToCart={addToCart} navigate={navigate}
+          />
+        ) : customPage ? (() => {
           const pd = theme.pageDefaults || {};
           const pageFontKey = customPage.fontSize || pd.fontSize || "متوسط";
           const pageFontPx = PAGE_FONT_SIZE_MAP[pageFontKey] || 15;
@@ -1867,7 +2060,7 @@ function Storefront({ products, categories, reviews, currencySettings, theme, la
             </article>
           );
         })() : (
-          homeSections.filter((s) => s.visible).map((s) => sectionRenderers[s.key] && sectionRenderers[s.key]())
+          (homeSections || []).filter((s) => s.visible).map((s) => sectionRenderers[s.key] && sectionRenderers[s.key]())
         )}
       </main>
 
@@ -1890,13 +2083,13 @@ function Storefront({ products, categories, reviews, currencySettings, theme, la
             <div>
               <p style={{ fontSize: 12 }} className="mb-4 text-white/70">{footer.col2Title}</p>
               <div className="flex flex-col gap-2.5 text-sm" style={{ color: "#C9C2B6" }}>
-                {footer.col2Links.map((l) => <a key={l.label} href={l.href} className="hover:text-white transition-colors">{l.label}</a>)}
+                {footer.col2Links.map((l) => <SmartNavLink key={l.label} href={l.href} className="hover:text-white transition-colors">{l.label}</SmartNavLink>)}
               </div>
             </div>
             <div>
               <p style={{ fontSize: 12 }} className="mb-4 text-white/70">{footer.col3Title}</p>
               <div className="flex flex-col gap-2.5 text-sm" style={{ color: "#C9C2B6" }}>
-                {footer.col3Links.map((l) => <a key={l.label} href={l.href} className="hover:text-white transition-colors">{l.label}</a>)}
+                {footer.col3Links.map((l) => <SmartNavLink key={l.label} href={l.href} className="hover:text-white transition-colors">{l.label}</SmartNavLink>)}
               </div>
             </div>
           </div>
@@ -2083,7 +2276,10 @@ function Storefront({ products, categories, reviews, currencySettings, theme, la
               <p style={{ ...fontDisplay, fontSize: 20, color: palette.ink }} className="mb-2">{quickView.name}</p>
               {quickView.shortDescription && <p style={{ color: palette.inkSoft, fontSize: 13.5 }} className="mb-3">{quickView.shortDescription}</p>}
               <p style={{ ...fontDisplay, fontSize: 18, color: palette.ink }} className="mb-4">{fmt(quickView.salePrice || quickView.price)}</p>
-              <button onClick={() => { addToCart(quickView.id); setQuickView(null); }} className="rounded-full px-5 py-2.5 text-sm font-medium" style={{ background: palette.sageDeep, color: palette.white }}>افزودن به سبد</button>
+              <div className="flex items-center gap-3 flex-wrap">
+                <button onClick={() => { addToCart(quickView.id); setQuickView(null); }} className="rounded-full px-5 py-2.5 text-sm font-medium" style={{ background: palette.sageDeep, color: palette.white }}>افزودن به سبد</button>
+                <Link to={`/product/${quickView.id}`} onClick={() => setQuickView(null)} className="inline-flex items-center gap-1 text-xs font-medium underline underline-offset-4" style={{ color: palette.inkSoft }}>مشاهده کامل محصول <ChevronRight size={12} style={{ transform: "scaleX(-1)" }} /></Link>
+              </div>
             </div>
           </div>
         </div>
@@ -2808,10 +3004,59 @@ function emptyProductDraft() {
     stock: "", threshold: "10", category: "", subCategory: "", skinTags: [], concerns: [], volume: "", ingredients: "",
     mainImage: "", hoverImage: "", extraImage: "", metaTitle: "", metaDescription: "", slug: "" };
 }
+/* Reusable single-field version of the product form's upload
+   handler, for the other admin image fields (category banner,
+   welcome-modal image, hero background) that only need one image
+   each rather than a main/hover/extra set. */
+function ImageUploadField({ value, onChange, placeholder }) {
+  const p = ADMIN_PALETTE;
+  const [state, setState] = useState(undefined); // "uploading" | "error" | undefined
+  const [error, setError] = useState("");
+  async function handleFile(file) {
+    if (!file) return;
+    setState("uploading");
+    setError("");
+    const { url, error: err } = await uploadProductImage(file);
+    if (err) { setState("error"); setError(err); return; }
+    onChange(url);
+    setState(undefined);
+  }
+  return (
+    <div className="flex flex-col gap-1.5">
+      <div className="flex items-center gap-2 rounded-2xl px-4 py-2.5 border" style={{ borderColor: state === "error" ? "#C0392B" : p.beige }}>
+        {value ? <img src={value} alt="" className="w-8 h-8 rounded-lg object-cover shrink-0" /> : <ImagePlus size={15} style={{ color: p.inkSoft }} className="shrink-0" />}
+        <input placeholder={placeholder} value={value} onChange={(e) => onChange(e.target.value)} className="flex-1 text-sm outline-none min-w-0" style={{ color: p.ink }} dir="ltr" />
+        <label className="flex items-center gap-1 text-xs font-medium px-3 py-1.5 rounded-full cursor-pointer shrink-0" style={{ background: p.creamDeep, color: p.inkSoft }}>
+          {state === "uploading" ? <span className="w-3 h-3 rounded-full border-2 animate-spin shrink-0" style={{ borderColor: p.beige, borderTopColor: p.sageDeep }} /> : <Upload size={12} />}
+          {state === "uploading" ? "در حال آپلود…" : "آپلود"}
+          <input type="file" accept="image/*" className="hidden" disabled={state === "uploading"} onChange={(e) => handleFile(e.target.files && e.target.files[0])} />
+        </label>
+      </div>
+      {state === "error" && <p style={{ fontSize: 11, color: "#C0392B" }}>{error}</p>}
+    </div>
+  );
+}
+
+
 function ProductFormModal({ draft, setDraft, onCancel, onSave, isEdit, categories }) {
   const p = ADMIN_PALETTE;
+  const [uploadState, setUploadState] = useState({}); // { [fieldKey]: "uploading" | "error" | undefined }
+  const [uploadError, setUploadError] = useState({});
   function toggleSkinTag(tag) { setDraft((d) => ({ ...d, skinTags: d.skinTags.includes(tag) ? d.skinTags.filter((t) => t !== tag) : [...d.skinTags, tag] })); }
   function toggleConcern(c) { setDraft((d) => ({ ...d, concerns: d.concerns.includes(c) ? d.concerns.filter((t) => t !== c) : [...d.concerns, c] })); }
+  async function handleImageUpload(key, file) {
+    if (!file) return;
+    setUploadState((s) => ({ ...s, [key]: "uploading" }));
+    setUploadError((s) => ({ ...s, [key]: "" }));
+    const { url, error } = await uploadProductImage(file);
+    if (error) {
+      setUploadState((s) => ({ ...s, [key]: "error" }));
+      setUploadError((s) => ({ ...s, [key]: error }));
+      return;
+    }
+    setDraft((d) => ({ ...d, [key]: url }));
+    setUploadState((s) => ({ ...s, [key]: undefined }));
+  }
   return (
     <ModalShell onClose={onCancel} title={isEdit ? "ویرایش محصول" : "افزودن محصول جدید"} wide palette={p}>
       <form onSubmit={(e) => { e.preventDefault(); onSave(); }} className="flex flex-col gap-6">
@@ -2884,13 +3129,27 @@ function ProductFormModal({ draft, setDraft, onCancel, onSave, isEdit, categorie
 
         <div className="flex flex-col gap-3 pt-2 border-t" style={{ borderColor: p.creamDeep }}>
           <p style={{ fontSize: 12, color: p.sageDeep, fontWeight: 600 }} className="pt-3">گالری تصاویر</p>
+          <p style={{ fontSize: 11, color: p.inkSoft }}>تصاویر مستقیماً در Supabase Storage آپلود می‌شوند و آدرس عمومی و امن آن‌ها ذخیره می‌شود.</p>
           {[["mainImage", "تصویر اصلی"], ["hoverImage", "تصویر هاور"], ["extraImage", "تصویر تکمیلی"]].map(([key, label]) => (
-            <div key={key} className="flex items-center gap-2 rounded-2xl px-4 py-2.5 border" style={{ borderColor: p.beige }}>
-              <ImagePlus size={15} style={{ color: p.inkSoft }} />
-              <input placeholder={`${label} — آدرس تصویر یا آپلود`} value={draft[key]} onChange={(e) => setDraft({ ...draft, [key]: e.target.value })} className="flex-1 text-sm outline-none" style={{ color: p.ink }} />
-              <label className="flex items-center gap-1 text-xs font-medium px-3 py-1.5 rounded-full cursor-pointer shrink-0" style={{ background: p.creamDeep, color: p.inkSoft }}>
-                <Upload size={12} /> آپلود<input type="file" accept="image/*" className="hidden" onChange={(e) => e.target.files[0] && setDraft({ ...draft, [key]: e.target.files[0].name })} />
-              </label>
+            <div key={key} className="flex flex-col gap-1.5">
+              <div className="flex items-center gap-2 rounded-2xl px-4 py-2.5 border" style={{ borderColor: uploadState[key] === "error" ? "#C0392B" : p.beige }}>
+                {draft[key] ? (
+                  <img src={draft[key]} alt="" className="w-8 h-8 rounded-lg object-cover shrink-0" />
+                ) : (
+                  <ImagePlus size={15} style={{ color: p.inkSoft }} className="shrink-0" />
+                )}
+                <input placeholder={`${label} — آدرس تصویر یا آپلود مستقیم`} value={draft[key]} onChange={(e) => setDraft({ ...draft, [key]: e.target.value })} className="flex-1 text-sm outline-none min-w-0" style={{ color: p.ink }} dir="ltr" />
+                <label className="flex items-center gap-1 text-xs font-medium px-3 py-1.5 rounded-full cursor-pointer shrink-0" style={{ background: p.creamDeep, color: p.inkSoft }}>
+                  {uploadState[key] === "uploading" ? (
+                    <span className="w-3 h-3 rounded-full border-2 animate-spin shrink-0" style={{ borderColor: p.beige, borderTopColor: p.sageDeep }} />
+                  ) : (
+                    <Upload size={12} />
+                  )}
+                  {uploadState[key] === "uploading" ? "در حال آپلود…" : "آپلود"}
+                  <input type="file" accept="image/*" className="hidden" disabled={uploadState[key] === "uploading"} onChange={(e) => handleImageUpload(key, e.target.files && e.target.files[0])} />
+                </label>
+              </div>
+              {uploadState[key] === "error" && <p style={{ fontSize: 11, color: "#C0392B" }}>{uploadError[key]}</p>}
             </div>
           ))}
         </div>
@@ -2931,13 +3190,7 @@ function CategoryFormModal({ draft, setDraft, onCancel, onSave, isEdit }) {
           </div>
         </div>
         <div><FieldLabel palette={p}>تصویر بنر</FieldLabel>
-          <div className="flex items-center gap-2 rounded-2xl px-4 py-2.5 border" style={{ borderColor: p.beige }}>
-            <ImagePlus size={15} style={{ color: p.inkSoft }} />
-            <input placeholder="آدرس تصویر یا آپلود" value={draft.banner} onChange={(e) => setDraft({ ...draft, banner: e.target.value })} className="flex-1 text-sm outline-none" style={{ color: p.ink }} />
-            <label className="flex items-center gap-1 text-xs font-medium px-3 py-1.5 rounded-full cursor-pointer shrink-0" style={{ background: p.creamDeep, color: p.inkSoft }}>
-              <Upload size={12} /> آپلود<input type="file" accept="image/*" className="hidden" onChange={(e) => e.target.files[0] && setDraft({ ...draft, banner: e.target.files[0].name })} />
-            </label>
-          </div>
+          <ImageUploadField value={draft.banner} onChange={(url) => setDraft({ ...draft, banner: url })} placeholder="آدرس تصویر یا آپلود مستقیم" />
         </div>
         <div><FieldLabel palette={p}>توضیحات</FieldLabel><TextArea palette={p} rows={2} value={draft.description} onChange={(e) => setDraft({ ...draft, description: e.target.value })} /></div>
         <div className="grid grid-cols-2 gap-4 items-center">
@@ -3388,14 +3641,14 @@ function PagesTab({ customPages, onAdd, onEdit, onDelete, onToggleHeaderNav, onT
       </div>
       <div className="flex flex-col gap-3">
         {customPages.map((pg) => {
-          const inHeader = headerNavLinks.some((l) => l.href === `#/page/${pg.slug}`);
-          const inFooter = footerLinks.some((l) => l.href === `#/page/${pg.slug}`);
+          const inHeader = headerNavLinks.some((l) => resolveNavHref(l.href) === `/page/${pg.slug}`);
+          const inFooter = footerLinks.some((l) => resolveNavHref(l.href) === `/page/${pg.slug}`);
           return (
             <div key={pg.id} className="rounded-3xl p-4 flex flex-col md:flex-row md:items-center gap-4" style={{ background: p.white, border: `1px solid ${p.beige}` }}>
               <div className="w-11 h-11 rounded-2xl flex items-center justify-center shrink-0" style={{ background: p.sageMist }}><LinkIcon size={17} style={{ color: p.sageDeep }} /></div>
               <div className="flex-1 min-w-0">
                 <p style={{ fontFamily: "'Noto Serif Arabic', serif", fontSize: 15.5, color: p.ink }}>{pg.title}</p>
-                <p style={{ fontSize: 12, color: p.inkSoft }} dir="ltr" className="truncate">#/page/{pg.slug}</p>
+                <p style={{ fontSize: 12, color: p.inkSoft }} dir="ltr" className="truncate">/page/{pg.slug}</p>
               </div>
               <div className="flex items-center gap-2 shrink-0 flex-wrap">
                 <button onClick={() => onToggleHeaderNav(pg)} className="text-xs font-medium rounded-full px-3 py-1.5 border" style={{ borderColor: inHeader ? p.sageDeep : p.beige, background: inHeader ? p.sageMist : "transparent", color: inHeader ? p.sageDeep : p.inkSoft }}>{inHeader ? "در منوی هدر ✓" : "افزودن به منوی هدر"}</button>
@@ -3819,6 +4072,7 @@ function QuizBuilderTab({ quizSettings, setQuizSettings, quizQuestions, setQuizQ
 function ContentTab({ hero, setHero, banner, setBanner, faqs, setFaqs, welcomeModal, setWelcomeModal, ingredientLibrary, setIngredientLibrary }) {
   const p = ADMIN_PALETTE;
   const [saved, setSaved] = useState(false);
+  const [resetNotice, setResetNotice] = useState(false);
 
   function updateFaq(i, key, value) { setFaqs((prev) => prev.map((f, idx) => idx === i ? { ...f, [key]: value } : f)); }
   function moveFaq(i, dir) {
@@ -3836,7 +4090,17 @@ function ContentTab({ hero, setHero, banner, setBanner, faqs, setFaqs, welcomeMo
       <div className="rounded-3xl p-6" style={{ background: p.white, border: `1px solid ${p.beige}` }}>
         <div className="flex items-center gap-2 mb-2"><Sparkles size={17} style={{ color: p.sageDeep }} /><p style={{ fontFamily: "'Noto Serif Arabic', serif", fontSize: 17, color: p.ink }}>مودال خوش‌آمدگویی</p></div>
         <p style={{ fontSize: 12, color: p.inkSoft }} className="mb-3">در اولین بازدید هر کاربر (به‌صورت مرورگر) یک‌بار نمایش داده می‌شود.</p>
-        <Toggle palette={p} label="نمایش مودال خوش‌آمدگویی" on={welcomeModal.enabled} onChange={(v) => setWelcomeModal({ ...welcomeModal, enabled: v })} />
+        <div className="flex items-center justify-between gap-3 flex-wrap mb-2">
+          <Toggle palette={p} label="نمایش مودال خوش‌آمدگویی" on={welcomeModal.enabled} onChange={(v) => setWelcomeModal({ ...welcomeModal, enabled: v })} />
+          <button
+            type="button"
+            onClick={() => { try { window.localStorage.removeItem("viina_welcome_seen"); } catch {} setResetNotice(true); setTimeout(() => setResetNotice(false), 2500); }}
+            className="inline-flex items-center gap-1.5 rounded-full px-3.5 py-1.5 text-xs font-medium border"
+            style={{ borderColor: p.beige, color: p.inkSoft }}
+          >
+            <Sparkles size={12} /> {resetNotice ? "بازنشانی شد ✓ — در فروشگاه دوباره ببینید" : "بازنشانی برای مشاهده مجدد"}
+          </button>
+        </div>
         <div className="grid sm:grid-cols-2 gap-4 mt-2">
           <div><FieldLabel palette={p}>عنوان فارسی</FieldLabel><TextInput palette={p} value={welcomeModal.headlineFa} onChange={(e) => setWelcomeModal({ ...welcomeModal, headlineFa: e.target.value })} /></div>
           <div><FieldLabel palette={p}>عنوان انگلیسی</FieldLabel><TextInput palette={p} value={welcomeModal.headlineEn} onChange={(e) => setWelcomeModal({ ...welcomeModal, headlineEn: e.target.value })} dir="ltr" /></div>
@@ -3845,11 +4109,7 @@ function ContentTab({ hero, setHero, banner, setBanner, faqs, setFaqs, welcomeMo
         <div className="mt-4"><FieldLabel palette={p}>متن دکمه</FieldLabel><TextInput palette={p} value={welcomeModal.ctaText} onChange={(e) => setWelcomeModal({ ...welcomeModal, ctaText: e.target.value })} /></div>
         <div className="mt-4">
           <FieldLabel palette={p}>تصویر مودال (در صورت خالی بودن، ماسکات پیش‌فرض نمایش داده می‌شود)</FieldLabel>
-          <div className="flex items-center gap-2 rounded-2xl px-4 py-2.5 border mb-3" style={{ borderColor: p.beige }}>
-            <ImagePlus size={15} style={{ color: p.inkSoft }} />
-            <input placeholder="آدرس تصویر یا آپلود" value={welcomeModal.image} onChange={(e) => setWelcomeModal({ ...welcomeModal, image: e.target.value })} className="flex-1 text-sm outline-none" style={{ color: p.ink }} />
-            <label className="flex items-center gap-1 text-xs font-medium px-3 py-1.5 rounded-full cursor-pointer shrink-0" style={{ background: p.creamDeep, color: p.inkSoft }}><Upload size={12} /> آپلود<input type="file" accept="image/*" className="hidden" onChange={(e) => e.target.files[0] && setWelcomeModal({ ...welcomeModal, image: e.target.files[0].name })} /></label>
-          </div>
+          <div className="mb-3"><ImageUploadField value={welcomeModal.image} onChange={(url) => setWelcomeModal({ ...welcomeModal, image: url })} placeholder="آدرس تصویر یا آپلود مستقیم" /></div>
           <div className="grid grid-cols-2 gap-4">
             <div><FieldLabel palette={p}>عرض تصویر (پیکسل)</FieldLabel><TextInput palette={p} type="number" min="80" max="720" value={welcomeModal.imageWidth} onChange={(e) => setWelcomeModal({ ...welcomeModal, imageWidth: e.target.value })} /></div>
             <div><FieldLabel palette={p}>ارتفاع تصویر (پیکسل)</FieldLabel><TextInput palette={p} type="number" min="80" max="720" value={welcomeModal.imageHeight} onChange={(e) => setWelcomeModal({ ...welcomeModal, imageHeight: e.target.value })} /></div>
@@ -3868,11 +4128,7 @@ function ContentTab({ hero, setHero, banner, setBanner, faqs, setFaqs, welcomeMo
             <div><FieldLabel palette={p}>لینک دکمه CTA</FieldLabel><TextInput palette={p} value={hero.ctaLink} onChange={(e) => setHero({ ...hero, ctaLink: e.target.value })} dir="ltr" /></div>
           </div>
           <div><FieldLabel palette={p}>تصویر اصلی هیرو (در صورت خالی بودن، ویژوال پیش‌فرض نمایش داده می‌شود)</FieldLabel>
-            <div className="flex items-center gap-2 rounded-2xl px-4 py-2.5 border" style={{ borderColor: p.beige }}>
-              <ImagePlus size={15} style={{ color: p.inkSoft }} />
-              <input placeholder="آدرس فایل یا آپلود" value={hero.bgImage} onChange={(e) => setHero({ ...hero, bgImage: e.target.value })} className="flex-1 text-sm outline-none" style={{ color: p.ink }} />
-              <label className="flex items-center gap-1 text-xs font-medium px-3 py-1.5 rounded-full cursor-pointer shrink-0" style={{ background: p.creamDeep, color: p.inkSoft }}><Upload size={12} /> آپلود<input type="file" accept="image/*" className="hidden" onChange={(e) => e.target.files[0] && setHero({ ...hero, bgImage: e.target.files[0].name })} /></label>
-            </div>
+            <ImageUploadField value={hero.bgImage} onChange={(url) => setHero({ ...hero, bgImage: url })} placeholder="آدرس فایل یا آپلود مستقیم" />
             <div className="grid grid-cols-2 gap-4 mt-3">
               <div><FieldLabel palette={p}>عرض تصویر (پیکسل)</FieldLabel><TextInput palette={p} type="number" min="80" max="720" value={hero.imageWidth} onChange={(e) => setHero({ ...hero, imageWidth: e.target.value })} /></div>
               <div><FieldLabel palette={p}>ارتفاع تصویر (پیکسل)</FieldLabel><TextInput palette={p} type="number" min="80" max="720" value={hero.imageHeight} onChange={(e) => setHero({ ...hero, imageHeight: e.target.value })} /></div>
@@ -4796,11 +5052,11 @@ function AdminDashboard({
       setCustomPages((prev) => prev.map((pg) => pg.id === editingPageId ? { ...pg, title: pageDraft.title, slug, navLabel: pageDraft.navLabel, content: pageDraft.content, ...styleFields } : pg));
       /* keep any live menu links pointed at the page's new URL instead of breaking them */
       if (prevSlug && prevSlug !== slug) {
-        setHeader((h) => ({ ...h, navLinks: h.navLinks.map((l) => l.href === `#/page/${prevSlug}` ? { ...l, href: `#/page/${slug}` } : l) }));
+        setHeader((h) => ({ ...h, navLinks: h.navLinks.map((l) => resolveNavHref(l.href) === `/page/${prevSlug}` ? { ...l, href: `/page/${slug}` } : l) }));
         setFooter((f) => ({
           ...f,
-          col2Links: f.col2Links.map((l) => l.href === `#/page/${prevSlug}` ? { ...l, href: `#/page/${slug}` } : l),
-          col3Links: f.col3Links.map((l) => l.href === `#/page/${prevSlug}` ? { ...l, href: `#/page/${slug}` } : l),
+          col2Links: f.col2Links.map((l) => resolveNavHref(l.href) === `/page/${prevSlug}` ? { ...l, href: `/page/${slug}` } : l),
+          col3Links: f.col3Links.map((l) => resolveNavHref(l.href) === `/page/${prevSlug}` ? { ...l, href: `/page/${slug}` } : l),
         }));
       }
     } else {
@@ -4813,20 +5069,20 @@ function AdminDashboard({
     const pg = customPages.find((p2) => p2.id === id);
     setCustomPages((prev) => prev.filter((p2) => p2.id !== id));
     if (pg) {
-      setHeader((h) => ({ ...h, navLinks: h.navLinks.filter((l) => l.href !== `#/page/${pg.slug}`) }));
-      setFooter((f) => ({ ...f, col2Links: f.col2Links.filter((l) => l.href !== `#/page/${pg.slug}`), col3Links: f.col3Links.filter((l) => l.href !== `#/page/${pg.slug}`) }));
+      setHeader((h) => ({ ...h, navLinks: h.navLinks.filter((l) => resolveNavHref(l.href) !== `/page/${pg.slug}`) }));
+      setFooter((f) => ({ ...f, col2Links: f.col2Links.filter((l) => resolveNavHref(l.href) !== `/page/${pg.slug}`), col3Links: f.col3Links.filter((l) => resolveNavHref(l.href) !== `/page/${pg.slug}`) }));
     }
   }
   function toggleHeaderNavForPage(pg) {
-    const href = `#/page/${pg.slug}`;
-    setHeader((h) => h.navLinks.some((l) => l.href === href)
-      ? { ...h, navLinks: h.navLinks.filter((l) => l.href !== href) }
+    const href = `/page/${pg.slug}`;
+    setHeader((h) => h.navLinks.some((l) => resolveNavHref(l.href) === href)
+      ? { ...h, navLinks: h.navLinks.filter((l) => resolveNavHref(l.href) !== href) }
       : { ...h, navLinks: [...h.navLinks, { label: pg.navLabel || pg.title, href }] });
   }
   function toggleFooterNavForPage(pg) {
-    const href = `#/page/${pg.slug}`;
-    setFooter((f) => f.col3Links.some((l) => l.href === href)
-      ? { ...f, col3Links: f.col3Links.filter((l) => l.href !== href) }
+    const href = `/page/${pg.slug}`;
+    setFooter((f) => f.col3Links.some((l) => resolveNavHref(l.href) === href)
+      ? { ...f, col3Links: f.col3Links.filter((l) => resolveNavHref(l.href) !== href) }
       : { ...f, col3Links: [...f.col3Links, { label: pg.navLabel || pg.title, href }] });
   }
 
@@ -5087,6 +5343,42 @@ function SkincareFrameBorder({ palette }) {
    unchanged) so every piece of admin-editable state can hydrate
    from the database on its very first render instead of flashing
    default content and then popping to the real data. */
+/* ================================================================
+   Error boundary — catches any render-time crash (e.g. an unguarded
+   .map() over data that hasn't loaded yet) and shows a recoverable
+   error screen instead of an unhandled exception unmounting the
+   entire app to a blank white/black page. */
+class ErrorBoundary extends React.Component {
+  constructor(props) {
+    super(props);
+    this.state = { hasError: false, error: null };
+  }
+  static getDerivedStateFromError(error) {
+    return { hasError: true, error };
+  }
+  componentDidCatch(error, info) {
+    console.error("VIINA: caught a render error", error, info);
+  }
+  render() {
+    if (this.state.hasError) {
+      return (
+        <div className="fixed inset-0 flex items-center justify-center p-6" style={{ background: "#171717" }}>
+          <div className="max-w-md w-full rounded-3xl p-6" style={{ background: "#FBF7F1" }}>
+            <p style={{ fontFamily: "'Noto Serif Arabic', serif", fontSize: 18, color: "#2B2620" }} className="mb-2">مشکلی در نمایش این صفحه پیش آمد</p>
+            <p style={{ fontSize: 12.5, color: "#5C554B" }} className="mb-4">این خطا ثبت شد. می‌توانید صفحه را دوباره بارگذاری کنید یا به صفحه اصلی بازگردید.</p>
+            <p dir="ltr" style={{ fontSize: 11, color: "#A5453A", fontFamily: "monospace" }} className="mb-5 break-words">{String(this.state.error?.message || this.state.error || "Unknown error")}</p>
+            <div className="flex gap-3">
+              <button onClick={() => { this.setState({ hasError: false, error: null }); window.location.href = "/"; }} className="flex-1 rounded-full py-3 text-sm font-medium" style={{ background: "#4F5A44", color: "#FFFFFF" }}>بازگشت به صفحه اصلی</button>
+              <button onClick={() => window.location.reload()} className="flex-1 rounded-full py-3 text-sm font-medium border" style={{ borderColor: "#EAE0D2", color: "#2B2620" }}>بارگذاری مجدد</button>
+            </div>
+          </div>
+        </div>
+      );
+    }
+    return this.props.children;
+  }
+}
+
 export default function App() {
   const [remoteContent, setRemoteContent] = useState(null);
   useEffect(() => {
@@ -5105,49 +5397,60 @@ export default function App() {
       </div>
     );
   }
-  return <AppShell remoteContent={remoteContent} />;
+  return (
+    <ErrorBoundary>
+      <BrowserRouter>
+        <AppShell remoteContent={remoteContent} />
+      </BrowserRouter>
+    </ErrorBoundary>
+  );
+}
+
+/* Route wrapper components — each reads its own :param via
+   useParams() and hands it to the shared <Storefront> component,
+   which is what actually renders the persistent header/footer plus
+   whichever content applies (home / product / category / page). */
+function ProductRouteWrapper(props) {
+  const { id } = useParams();
+  return <Storefront {...props} productId={id} />;
+}
+function CategoryRouteWrapper(props) {
+  const { slug } = useParams();
+  return <Storefront {...props} initialCategorySlug={slug} />;
+}
+function PageRouteWrapper(props) {
+  const { slug } = useParams();
+  const matchedPage = (props.customPages || []).find((pg) => pg.slug === slug);
+  const pageToShow = matchedPage || { title: "صفحه پیدا نشد", navLabel: "خطای ۴۰۴", content: "این صفحه وجود ندارد یا حذف شده است. ممکن است آدرس تغییر کرده باشد." };
+  return <Storefront {...props} customPage={pageToShow} />;
 }
 
 function AppShell({ remoteContent }) {
-  function routeFromHash() {
-    const h = window.location.hash;
-    if (h === "#/admin") return "admin";
-    if (h === "#/viina-admin-portal") return "adminLogin";
-    if (h === "#/auth" || h === "#/login") return "auth";
-    if (h === "#/checkout") return "checkout";
-    if (h.startsWith("#/page/")) return "page";
-    if (h.startsWith("#/category/")) return "category";
-    return "store";
-  }
-  function slugFromHash() {
-    const m = window.location.hash.match(/^#\/(?:page|category)\/(.+)$/);
-    return m ? decodeURIComponent(m[1]) : "";
-  }
-  const [route, setRoute] = useState(routeFromHash);
-  const [routeSlug, setRouteSlug] = useState(slugFromHash);
-  const [products, setProducts] = useSyncedState("products", remoteContent.products ?? []);
-  const [categories, setCategories] = useSyncedState("categories", remoteContent.categories ?? []);
-  const [reviews, setReviews] = useSyncedState("reviews", remoteContent.reviews ?? []);
+  const location = useLocation();
+  const navigate = useNavigate();
+  const [products, setProducts] = useSyncedState("products", asArray(remoteContent.products));
+  const [categories, setCategories] = useSyncedState("categories", asArray(remoteContent.categories));
+  const [reviews, setReviews] = useSyncedState("reviews", asArray(remoteContent.reviews));
   const [currencySettings, setCurrencySettings] = useSyncedState("currencySettings", remoteContent.currencySettings ?? { currency: "toman", currencyLabel: "تومان", digitStyle: "en" });
   const [theme, setTheme] = useSyncedState("theme", remoteContent.theme ?? DEFAULT_THEME);
   const [layout, setLayout] = useSyncedState("layout", remoteContent.layout ?? DEFAULT_LAYOUT);
-  const [homeSections, setHomeSections] = useSyncedState("homeSections", remoteContent.homeSections ?? HOME_SECTIONS_DEFAULT);
+  const [homeSections, setHomeSections] = useSyncedState("homeSections", Array.isArray(remoteContent.homeSections) && remoteContent.homeSections.length > 0 ? remoteContent.homeSections : HOME_SECTIONS_DEFAULT);
   const [header, setHeader] = useSyncedState("header", remoteContent.header ?? { ...DEFAULT_HEADER, heroHeadline: HERO_CMS_DEFAULT.headline, heroSubtitle: HERO_CMS_DEFAULT.subtitle, heroCtaText: HERO_CMS_DEFAULT.ctaText, heroCtaLink: HERO_CMS_DEFAULT.ctaLink, heroImage: HERO_CMS_DEFAULT.bgImage, heroImageWidth: HERO_CMS_DEFAULT.imageWidth, heroImageHeight: HERO_CMS_DEFAULT.imageHeight });
   const [announcement, setAnnouncement] = useSyncedState("announcement", remoteContent.announcement ?? DEFAULT_ANNOUNCEMENT);
   const [footer, setFooter] = useSyncedState("footer", remoteContent.footer ?? DEFAULT_FOOTER);
   const [banner, setBanner] = useSyncedState("banner", remoteContent.banner ?? DEFAULT_BANNER);
   const [hero, setHeroState] = useSyncedState("hero", remoteContent.hero ?? HERO_CMS_DEFAULT);
-  const [faqs, setFaqs] = useSyncedState("faqs", remoteContent.faqs ?? FAQS_DEFAULT);
+  const [faqs, setFaqs] = useSyncedState("faqs", Array.isArray(remoteContent.faqs) ? remoteContent.faqs : FAQS_DEFAULT);
   const [welcomeModal, setWelcomeModal] = useSyncedState("welcomeModal", remoteContent.welcomeModal ?? DEFAULT_WELCOME_MODAL);
   const [authSettings, setAuthSettings] = useSyncedState("authSettings", remoteContent.authSettings ?? DEFAULT_AUTH_SETTINGS);
   const [freeShipThreshold, setFreeShipThreshold] = useSyncedState("freeShipThreshold", remoteContent.freeShipThreshold ?? "750000");
-  const [ingredientLibrary, setIngredientLibrary] = useSyncedState("ingredientLibrary", remoteContent.ingredientLibrary ?? []);
+  const [ingredientLibrary, setIngredientLibrary] = useSyncedState("ingredientLibrary", asArray(remoteContent.ingredientLibrary));
   const [quizSettings, setQuizSettings] = useSyncedState("quizSettings", remoteContent.quizSettings ?? DEFAULT_QUIZ_SETTINGS);
-  const [quizQuestions, setQuizQuestions] = useSyncedState("quizQuestions", remoteContent.quizQuestions ?? DEFAULT_QUIZ_QUESTIONS);
-  const [quizResults, setQuizResults] = useSyncedState("quizResults", remoteContent.quizResults ?? DEFAULT_QUIZ_RESULTS);
+  const [quizQuestions, setQuizQuestions] = useSyncedState("quizQuestions", Array.isArray(remoteContent.quizQuestions) ? remoteContent.quizQuestions : DEFAULT_QUIZ_QUESTIONS);
+  const [quizResults, setQuizResults] = useSyncedState("quizResults", Array.isArray(remoteContent.quizResults) ? remoteContent.quizResults : DEFAULT_QUIZ_RESULTS);
   const [rewardsSettings, setRewardsSettings] = useSyncedState("rewardsSettings", remoteContent.rewardsSettings ?? DEFAULT_REWARDS_SETTINGS);
-  const [customPages, setCustomPages] = useSyncedState("customPages", remoteContent.customPages ?? DEFAULT_CUSTOM_PAGES);
-  const [bundles, setBundles] = useSyncedState("bundles", remoteContent.bundles ?? DEFAULT_BUNDLES);
+  const [customPages, setCustomPages] = useSyncedState("customPages", Array.isArray(remoteContent.customPages) ? remoteContent.customPages : DEFAULT_CUSTOM_PAGES);
+  const [bundles, setBundles] = useSyncedState("bundles", Array.isArray(remoteContent.bundles) ? remoteContent.bundles : DEFAULT_BUNDLES);
   /* Per-visitor session state — deliberately NOT synced to Supabase */
   const [cart, setCart] = useState([]);
   const [user, setUser] = useState(null);
@@ -5157,14 +5460,8 @@ function AppShell({ remoteContent }) {
   const [adminAuthed, setAdminAuthed] = useState(false);
 
   useEffect(() => {
-    const onHashChange = () => { setRoute(routeFromHash()); setRouteSlug(slugFromHash()); };
-    window.addEventListener("hashchange", onHashChange);
-    return () => window.removeEventListener("hashchange", onHashChange);
-  }, []);
-
-  useEffect(() => {
-    if (route === "checkout" && !user) goAuthThenCheckout();
-  }, [route, user]);
+    if (location.pathname === "/checkout" && !user) goAuthThenCheckout();
+  }, [location.pathname, user]);
 
   /* Real admin session persistence via Supabase Auth — it keeps its
      own token in the browser's localStorage, so a page refresh (or
@@ -5177,25 +5474,24 @@ function AppShell({ remoteContent }) {
   }, []);
 
   /* keep the visible URL honest: hitting /admin without a session
-     shows the portal's hash instead of silently rendering it under /admin */
+     shows the portal route instead of silently rendering it under /admin */
   useEffect(() => {
-    if (route === "admin" && !adminAuthed) window.location.hash = "/viina-admin-portal";
-  }, [route, adminAuthed]);
+    if (location.pathname === "/admin" && !adminAuthed) navigate("/viina-admin-portal", { replace: true });
+  }, [location.pathname, adminAuthed]);
 
-  function goAdmin() { window.location.hash = "/admin"; setRoute("admin"); }
-  function goAdminPortal() { window.location.hash = "/viina-admin-portal"; setRoute("adminLogin"); }
-  function goStore() { window.location.hash = ""; setRoute("store"); }
-  function goAuth() { setPostLoginGoCheckout(false); window.location.hash = "/auth"; setRoute("auth"); }
-  function goCheckout() { window.location.hash = "/checkout"; setRoute("checkout"); }
-  function goAuthThenCheckout() { setPostLoginGoCheckout(true); window.location.hash = "/auth"; setRoute("auth"); }
+  function goAdmin() { navigate("/admin"); }
+  function goAdminPortal() { navigate("/viina-admin-portal"); }
+  function goStore() { navigate("/"); }
+  function goAuth() { setPostLoginGoCheckout(false); navigate("/auth"); }
+  function goCheckout() { navigate("/checkout"); }
+  function goAuthThenCheckout() { setPostLoginGoCheckout(true); navigate("/auth"); }
   function handleLogin(userInfo) {
     setUser(userInfo);
     if (postLoginGoCheckout) { goCheckout(); } else { goStore(); }
   }
   function handleAdminLoginSuccess() {
     /* adminAuthed flips true via the onAuthStateChange listener above */
-    window.location.hash = "/admin";
-    setRoute("admin");
+    navigate("/admin");
   }
   function handleAdminLogout() {
     supabase.auth.signOut();
@@ -5211,67 +5507,51 @@ function AppShell({ remoteContent }) {
     setHeader((h) => ({ ...h, heroHeadline: resolved.headline, heroSubtitle: resolved.subtitle, heroCtaText: resolved.ctaText, heroCtaLink: resolved.ctaLink, heroImage: resolved.bgImage, heroImageWidth: resolved.imageWidth, heroImageHeight: resolved.imageHeight }));
   }
 
-  let content;
-  if (route === "adminLogin" || (route === "admin" && !adminAuthed)) {
-    content = <AdminLoginPage onSuccess={handleAdminLoginSuccess} onBack={goStore} />;
-  } else if (route === "admin") {
-    content = (
-      <AdminDashboard
-        products={products} setProducts={setProducts} categories={categories} setCategories={setCategories}
-        reviews={reviews} setReviews={setReviews} currencySettings={currencySettings} setCurrencySettings={setCurrencySettings}
-        theme={theme} setTheme={setTheme} layout={layout} setLayout={setLayout} homeSections={homeSections} setHomeSections={setHomeSections}
-        header={header} setHeader={setHeader} announcement={announcement} setAnnouncement={setAnnouncement} footer={footer} setFooter={setFooter}
-        banner={banner} setBanner={setBanner} hero={hero} setHero={setHero} faqs={faqs} setFaqs={setFaqs}
-        welcomeModal={welcomeModal} setWelcomeModal={setWelcomeModal} authSettings={authSettings} setAuthSettings={setAuthSettings}
-        freeShipThreshold={freeShipThreshold} setFreeShipThreshold={setFreeShipThreshold} ingredientLibrary={ingredientLibrary} setIngredientLibrary={setIngredientLibrary}
-        quizSettings={quizSettings} setQuizSettings={setQuizSettings} quizQuestions={quizQuestions} setQuizQuestions={setQuizQuestions}
-        quizResults={quizResults} setQuizResults={setQuizResults} rewardsSettings={rewardsSettings} setRewardsSettings={setRewardsSettings}
-        customPages={customPages} setCustomPages={setCustomPages} bundles={bundles} setBundles={setBundles}
-        onExit={goStore} onLogout={handleAdminLogout}
+  const storefrontProps = {
+    products, categories, reviews, currencySettings, theme, layout, header, announcement, footer, banner,
+    homeSections, faqs, welcomeModal, cart, setCart, user, freeShipThreshold, ingredientLibrary,
+    quizSettings, quizQuestions, quizResults, rewardsSettings, customPages, bundles,
+    onOpenAdmin: goAdmin, onGoAuth: goAuth, onGoCheckout: goCheckout,
+  };
+
+  const content = (
+    <Routes>
+      <Route path="/" element={<Storefront {...storefrontProps} />} />
+      <Route path="/product/:id" element={<ProductRouteWrapper {...storefrontProps} />} />
+      <Route path="/category/:slug" element={<CategoryRouteWrapper {...storefrontProps} />} />
+      <Route path="/page/:slug" element={<PageRouteWrapper {...storefrontProps} />} />
+      <Route path="/auth" element={<AuthPage theme={theme} authSettings={authSettings} onLogin={handleLogin} onBack={goStore} />} />
+      <Route
+        path="/checkout"
+        element={!user ? null : (
+          <CheckoutPage
+            cart={cart} products={products} user={user} currencySettings={currencySettings} theme={theme} rewardsSettings={rewardsSettings}
+            onBack={goStore} onPlaceOrder={() => { setCart([]); goStore(); }}
+          />
+        )}
       />
-    );
-  } else if (route === "auth") {
-    content = <AuthPage theme={theme} authSettings={authSettings} onLogin={handleLogin} onBack={goStore} />;
-  } else if (route === "checkout") {
-    content = !user ? null : (
-      <CheckoutPage
-        cart={cart} products={products} user={user} currencySettings={currencySettings} theme={theme} rewardsSettings={rewardsSettings}
-        onBack={goStore} onPlaceOrder={() => { setCart([]); goStore(); }}
+      <Route path="/viina-admin-portal" element={<AdminLoginPage onSuccess={handleAdminLoginSuccess} onBack={goStore} />} />
+      <Route
+        path="/admin"
+        element={!adminAuthed ? null : (
+          <AdminDashboard
+            products={products} setProducts={setProducts} categories={categories} setCategories={setCategories}
+            reviews={reviews} setReviews={setReviews} currencySettings={currencySettings} setCurrencySettings={setCurrencySettings}
+            theme={theme} setTheme={setTheme} layout={layout} setLayout={setLayout} homeSections={homeSections} setHomeSections={setHomeSections}
+            header={header} setHeader={setHeader} announcement={announcement} setAnnouncement={setAnnouncement} footer={footer} setFooter={setFooter}
+            banner={banner} setBanner={setBanner} hero={hero} setHero={setHero} faqs={faqs} setFaqs={setFaqs}
+            welcomeModal={welcomeModal} setWelcomeModal={setWelcomeModal} authSettings={authSettings} setAuthSettings={setAuthSettings}
+            freeShipThreshold={freeShipThreshold} setFreeShipThreshold={setFreeShipThreshold} ingredientLibrary={ingredientLibrary} setIngredientLibrary={setIngredientLibrary}
+            quizSettings={quizSettings} setQuizSettings={setQuizSettings} quizQuestions={quizQuestions} setQuizQuestions={setQuizQuestions}
+            quizResults={quizResults} setQuizResults={setQuizResults} rewardsSettings={rewardsSettings} setRewardsSettings={setRewardsSettings}
+            customPages={customPages} setCustomPages={setCustomPages} bundles={bundles} setBundles={setBundles}
+            onExit={goStore} onLogout={handleAdminLogout}
+          />
+        )}
       />
-    );
-  } else if (route === "page") {
-    const matchedPage = customPages.find((pg) => pg.slug === routeSlug);
-    const pageToShow = matchedPage || { title: "صفحه پیدا نشد", navLabel: "خطای ۴۰۴", content: "این صفحه وجود ندارد یا حذف شده است. ممکن است آدرس تغییر کرده باشد." };
-    content = (
-      <Storefront
-        products={products} categories={categories} reviews={reviews} currencySettings={currencySettings}
-        theme={theme} layout={layout} header={header} announcement={announcement} footer={footer} banner={banner}
-        homeSections={homeSections} faqs={faqs} welcomeModal={welcomeModal} cart={cart} setCart={setCart} user={user}
-        freeShipThreshold={freeShipThreshold} ingredientLibrary={ingredientLibrary} quizSettings={quizSettings} quizQuestions={quizQuestions} quizResults={quizResults} rewardsSettings={rewardsSettings}
-        onOpenAdmin={goAdmin} onGoAuth={goAuth} onGoCheckout={goCheckout} customPage={pageToShow} customPages={customPages} bundles={bundles}
-      />
-    );
-  } else if (route === "category") {
-    content = (
-      <Storefront
-        products={products} categories={categories} reviews={reviews} currencySettings={currencySettings}
-        theme={theme} layout={layout} header={header} announcement={announcement} footer={footer} banner={banner}
-        homeSections={homeSections} faqs={faqs} welcomeModal={welcomeModal} cart={cart} setCart={setCart} user={user}
-        freeShipThreshold={freeShipThreshold} ingredientLibrary={ingredientLibrary} quizSettings={quizSettings} quizQuestions={quizQuestions} quizResults={quizResults} rewardsSettings={rewardsSettings}
-        onOpenAdmin={goAdmin} onGoAuth={goAuth} onGoCheckout={goCheckout} initialCategorySlug={routeSlug} customPages={customPages} bundles={bundles}
-      />
-    );
-  } else {
-    content = (
-      <Storefront
-        products={products} categories={categories} reviews={reviews} currencySettings={currencySettings}
-        theme={theme} layout={layout} header={header} announcement={announcement} footer={footer} banner={banner}
-        homeSections={homeSections} faqs={faqs} welcomeModal={welcomeModal} cart={cart} setCart={setCart} user={user}
-        freeShipThreshold={freeShipThreshold} ingredientLibrary={ingredientLibrary} quizSettings={quizSettings} quizQuestions={quizQuestions} quizResults={quizResults} rewardsSettings={rewardsSettings}
-        onOpenAdmin={goAdmin} onGoAuth={goAuth} onGoCheckout={goCheckout} customPages={customPages} bundles={bundles}
-      />
-    );
-  }
+      <Route path="*" element={<Navigate to="/" replace />} />
+    </Routes>
+  );
 
   /* Two explicit stacking layers, in DOM + z-index order:
        z-0  → fixed, full-bleed dark wallpaper carrying the animated
