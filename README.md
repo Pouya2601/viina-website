@@ -10,6 +10,32 @@ Follow the sections in order: **1) Supabase → 2) local dev → 3) Netlify.**
 
 ---
 
+## What's in this version
+
+- **Real client-side routing** via `react-router-dom` — dedicated URLs
+  for the home page (`/`), each product (`/product/:id`, with
+  Specifications / Reviews / Related-products tabs), each category
+  (`/category/:slug`), and each custom page (`/page/:slug`). The
+  header and footer are part of every one of these (rendered once by
+  `<Storefront>`, which every route shares), so they stay identical
+  and persistent no matter which page you're on.
+- **Product image upload** — the Admin Panel's image fields upload
+  directly to a Supabase Storage bucket called `products` and save
+  the resulting public HTTPS URL, instead of a local, this-tab-only
+  blob URL or (in an earlier version of this file) just the bare
+  filename. Covered by `supabase/schema.sql`.
+- **Crash protection** — every content list the app renders (products,
+  categories, reviews, FAQs, etc.) is guarded against Supabase
+  returning something unexpected (missing, null, or malformed data),
+  and a top-level error boundary shows a recoverable "something went
+  wrong" screen instead of a blank page if anything still slips
+  through.
+- Because routing is now real paths instead of `#hash` fragments, the
+  Netlify redirect in `netlify.toml` (`/* → /index.html`) is **required**
+  — without it, refreshing a page like `/product/3` would 404.
+
+---
+
 ## 1. Create your free Supabase project
 
 1. Go to **[supabase.com](https://supabase.com)** and sign up (free tier is enough).

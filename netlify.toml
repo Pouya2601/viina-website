@@ -2,10 +2,12 @@
   command = "npm run build"
   publish = "dist"
 
-# The app's own routing (#/admin, #/page/<slug>, #/category/<slug>, ...)
-# is hash-based, so the browser never asks the server for those paths —
-# it only ever requests the site root. This redirect is just a safety
-# net for any other path someone might type directly.
+# REQUIRED: the app uses real client-side routing (react-router-dom),
+# with paths like /product/123, /category/serums, /admin. Without this
+# redirect, refreshing the page (or opening one of those URLs directly)
+# would 404 on Netlify's server, since only index.html is actually
+# served — the router then takes over in the browser and renders the
+# right page from that path.
 [[redirects]]
   from = "/*"
   to = "/index.html"
