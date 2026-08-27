@@ -224,6 +224,20 @@ const CATEGORY_ICON_OPTIONS = [
   { key: "droplet", icon: Droplet }, { key: "sparkles", icon: Sparkles }, { key: "leaf", icon: Leaf },
   { key: "sun", icon: Sun }, { key: "shield", icon: ShieldCheck }, { key: "tag", icon: Tag },
 ];
+/* Categories store their icon as a plain string KEY (e.g. "leaf"),
+   never as a component reference — lucide-react icons are built with
+   forwardRef(), which makes them JS *objects*, not plain functions.
+   An object like that can't survive being saved to Supabase as JSON
+   (it round-trips back as "{}", which is truthy, so a `|| Tag`
+   fallback never kicks in) and crashes React with "Element type is
+   invalid ... got: object" the moment the page reloads. Resolving
+   the real component here, only at render time, from a plain string
+   key sidesteps the whole problem — and safely falls back to Tag for
+   any category saved by an older version of this file that *did*
+   store the broken object form. */
+function resolveCategoryIcon(iconKey) {
+  return CATEGORY_ICON_OPTIONS.find((o) => o.key === iconKey)?.icon || Tag;
+}
 const ORDER_STATUS_OPTIONS = ["در انتظار", "در حال پردازش", "ارسال شد", "تحویل داده شد", "لغو شده", "بازپرداخت شده"];
 const PAYMENT_STATUS_OPTIONS = ["پرداخت‌شده", "در انتظار", "ناموفق"];
 const REVIEW_STATUS_OPTIONS = ["تأیید شده", "در انتظار بررسی", "رد شده"];
@@ -1446,7 +1460,7 @@ function Storefront({ products, categories, reviews, currencySettings, theme, la
         ) : (
           <div className="columns-2 md:columns-3 gap-4 md:gap-5">
             {categories.map((c, i) => {
-              const Icon = c.icon || Tag;
+              const Icon = resolveCategoryIcon(c.icon);
               /* asymmetric rhythm: heights and vertical offsets cycle so tiles
                  never line up into a uniform grid, giving the editorial-gallery feel */
               const heightClass = ["h-56", "h-72", "h-64", "h-80", "h-60"][i % 5];
@@ -3600,7 +3614,7 @@ function CategoriesTab({ categories, products, onAdd, onEdit, onDelete, onToggle
       </div>
       <div className="flex flex-col gap-3">
         {sorted.map((c) => {
-          const Icon = c.icon || Tag; const count = products.filter((pr) => pr.category === c.id).length;
+          const Icon = resolveCategoryIcon(c.icon); const count = products.filter((pr) => pr.category === c.id).length;
           return (
             <div key={c.id} className="rounded-3xl p-4 flex items-center gap-4" style={{ background: p.white, border: `1px solid ${p.beige}` }}>
               <span style={{ fontFamily: "'Noto Serif Arabic', serif", fontSize: 13, color: p.inkSoft, width: 20 }}>{c.order}</span>
@@ -5017,15 +5031,15 @@ function AdminDashboard({
   function openAddCategory() { setEditingCatId(null); setCatDraft(emptyCategoryDraft()); setCatModalOpen(true); }
   function openEditCategory(c) {
     setEditingCatId(c.id);
-    const iconKey = CATEGORY_ICON_OPTIONS.find((o) => o.icon === c.icon)?.key || "tag";
+    const iconKey = CATEGORY_ICON_OPTIONS.some((o) => o.key === c.icon) ? c.icon : "tag";
     setCatDraft({ name: c.name, slug: c.slug || "", banner: c.banner || "", description: c.description || "", featured: !!c.featured, order: String(c.order || 1), icon: iconKey });
     setCatModalOpen(true);
   }
   function saveCategory() {
-    const iconComp = CATEGORY_ICON_OPTIONS.find((o) => o.key === catDraft.icon)?.icon || Tag;
+    const iconKey = CATEGORY_ICON_OPTIONS.some((o) => o.key === catDraft.icon) ? catDraft.icon : "tag";
     const otherSlugs = categories.filter((c) => c.id !== editingCatId).map((c) => c.slug).filter(Boolean);
     const slug = uniqueSlug(catDraft.slug || catDraft.name, otherSlugs);
-    const fields = { name: catDraft.name, slug, banner: catDraft.banner, description: catDraft.description, featured: catDraft.featured, order: Number(catDraft.order) || 1, icon: iconComp, blurb: catDraft.description.slice(0, 24) };
+    const fields = { name: catDraft.name, slug, banner: catDraft.banner, description: catDraft.description, featured: catDraft.featured, order: Number(catDraft.order) || 1, icon: iconKey, blurb: catDraft.description.slice(0, 24) };
     if (editingCatId != null) {
       setCategories((prev) => prev.map((c) => c.id === editingCatId ? { ...c, ...fields } : c));
     } else {
