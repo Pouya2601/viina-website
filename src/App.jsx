@@ -117,6 +117,19 @@ const DEFAULT_FOOTER = {
 };
 
 const DEFAULT_BANNER = { enabled: false, image: "", text: "", link: "#shop" };
+/* "قبل/بعد" comparison slider on the homepage — admin can upload real
+   before/after photos; falls back to the decorative gradient mock
+   (see GlowCompareSlider) when left empty. */
+const DEFAULT_GLOW_SLIDER = { beforeImage: "", afterImage: "", beforeLabel: "", afterLabel: "" };
+/* "فلسفه ما" / About section visual — admin can upload a real photo to
+   replace the default sparkle-icon placeholder, or hide the image
+   column entirely on narrow layouts. */
+const DEFAULT_ABOUT = { image: "", hideImage: false };
+/* Per-section kicker/heading overrides for the homepage sections that
+   ship with hard-coded copy (e.g. "پرفروش‌ترین‌های ...") — lets the
+   admin customize any of them from "چیدمان و نمایش" without a code
+   change. Empty string for a field means "use the built-in default". */
+const DEFAULT_SECTION_COPY = {};
 const DEFAULT_WELCOME_MODAL = {
   enabled: true,
   headlineFa: "به وینا خوش آمدید",
@@ -402,6 +415,17 @@ function asArray(x) {
   return Array.isArray(x) ? x : [];
 }
 
+/* A product's photo gallery. Prefers the new `images` array (unlimited
+   photos, admin-orderable); falls back to the older mainImage/hoverImage/
+   extraImage trio so products saved before the gallery editor existed
+   keep working with zero migration step. Always returns a plain array
+   of URL strings with empty slots removed. */
+function getProductImages(pr) {
+  if (!pr) return [];
+  if (Array.isArray(pr.images) && pr.images.filter(Boolean).length > 0) return pr.images.filter(Boolean);
+  return [pr.mainImage, pr.hoverImage, pr.extraImage].filter(Boolean);
+}
+
 function useSyncedState(key, initialValue) {
   const [value, setValue] = useState(initialValue);
   const skipNextSave = useRef(true);
@@ -631,6 +655,88 @@ function Bottle({ tint, ink, white, label }) {
     </div>
   );
 }
+/* Drop-in replacement for the old "tinted circle + illustrated Bottle"
+   product visual: if the product has real uploaded photos, shows them
+   full-bleed (swapping to the 2nd photo on hover, like a typical store)
+   — otherwise falls back to the illustrated Bottle exactly as before,
+   so products without photos yet still look intentional, not broken. */
+function ProductVisual({ product, categories, palette, size = 128, fill, iconScaleClass = "" }) {
+  const images = getProductImages(product);
+  const [hover, setHover] = useState(false);
+  const label = typeof buildProductAltText === "function" ? buildProductAltText(product, categories) : product?.name;
+  if (images.length === 0) {
+    return (
+      <div className="relative z-[5] drop-anim flex items-center justify-center transition-transform duration-500 group-hover:scale-110" style={{ width: size, height: size, background: `${product.tint}55` }}>
+        <div className={iconScaleClass}><Bottle tint={product.tint} ink={palette.ink} white={palette.white} label={label} /></div>
+      </div>
+    );
+  }
+  const src = hover && images[1] ? images[1] : images[0];
+  return (
+    <div className={fill ? "absolute inset-0 z-[3]" : "relative z-[3]"} style={fill ? undefined : { width: size, height: size }} onMouseEnter={() => setHover(true)} onMouseLeave={() => setHover(false)}>
+      <img src={src} alt={label} className="w-full h-full object-cover" loading="lazy" />
+    </div>
+  );
+}
+/* Full gallery for the product detail page: swipeable on touch,
+   arrow-navigable on desktop, with a thumbnail strip — falls back to
+   the illustrated Bottle when the product has no uploaded photos. */
+function ProductGallery({ product, categories, palette }) {
+  const images = getProductImages(product);
+  const [index, setIndex] = useState(0);
+  const touchStartX = useRef(null);
+  const label = buildProductAltText(product, categories);
+
+  if (images.length === 0) {
+    return (
+      <div className="rounded-3xl flex items-center justify-center" style={{ background: palette.creamDeep, minHeight: 320 }}>
+        <div className="scale-[2.2]"><Bottle tint={product.tint} ink={palette.ink} white={palette.white} label={label} /></div>
+      </div>
+    );
+  }
+
+  const safeIndex = Math.min(index, images.length - 1);
+  function go(delta) { setIndex((i) => (Math.min(i, images.length - 1) + delta + images.length) % images.length); }
+  function onTouchStart(e) { touchStartX.current = e.touches[0].clientX; }
+  function onTouchEnd(e) {
+    if (touchStartX.current == null) return;
+    const dx = e.changedTouches[0].clientX - touchStartX.current;
+    if (Math.abs(dx) > 40) go(dx > 0 ? -1 : 1);
+    touchStartX.current = null;
+  }
+
+  return (
+    <div>
+      <div className="relative rounded-3xl overflow-hidden" style={{ background: palette.creamDeep, minHeight: 320 }} onTouchStart={onTouchStart} onTouchEnd={onTouchEnd}>
+        <img src={images[safeIndex]} alt={label} className="w-full h-full object-cover" style={{ minHeight: 320, maxHeight: 480 }} />
+        {images.length > 1 && (
+          <>
+            <button type="button" onClick={() => go(-1)} aria-label="تصویر قبلی" className="absolute top-1/2 -translate-y-1/2 right-3 w-9 h-9 rounded-full flex items-center justify-center" style={{ background: `${palette.white}CC` }}>
+              <ChevronRight size={16} style={{ color: palette.ink }} />
+            </button>
+            <button type="button" onClick={() => go(1)} aria-label="تصویر بعدی" className="absolute top-1/2 -translate-y-1/2 left-3 w-9 h-9 rounded-full flex items-center justify-center" style={{ background: `${palette.white}CC` }}>
+              <ChevronRight size={16} style={{ color: palette.ink, transform: "scaleX(-1)" }} />
+            </button>
+            <div className="absolute bottom-3 inset-x-0 flex items-center justify-center gap-1.5">
+              {images.map((_, i) => (
+                <span key={i} style={{ width: i === safeIndex ? 16 : 6, height: 6, borderRadius: 999, background: i === safeIndex ? palette.sageDeep : `${palette.white}CC`, transition: "width 0.25s" }} />
+              ))}
+            </div>
+          </>
+        )}
+      </div>
+      {images.length > 1 && (
+        <div className="flex items-center gap-2.5 mt-3 overflow-x-auto pb-1">
+          {images.map((src, i) => (
+            <button key={i} type="button" onClick={() => setIndex(i)} className="shrink-0 rounded-xl overflow-hidden border-2" style={{ width: 58, height: 58, borderColor: i === safeIndex ? palette.sageDeep : "transparent" }}>
+              <img src={src} alt="" className="w-full h-full object-cover" />
+            </button>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}
 function Stars({ rating, size = 14, color = "#A67C52" }) {
   return (
     <div className="flex items-center gap-0.5">
@@ -825,9 +931,7 @@ function ProductDetailContent({ productId, products, categories, reviews, palett
       </nav>
 
       <div className="grid md:grid-cols-2 gap-10 md:gap-14 mb-14">
-        <div className="rounded-3xl flex items-center justify-center" style={{ background: palette.creamDeep, minHeight: 320 }}>
-          <div className="scale-[2.2]"><Bottle tint={product.tint} ink={palette.ink} white={palette.white} label={buildProductAltText(product, categories)} /></div>
-        </div>
+        <ProductGallery product={product} categories={categories} palette={palette} />
         <div>
           {product.tag && <span className="inline-flex items-center gap-1 rounded-full px-2.5 py-1 text-[10.5px] font-medium mb-3" style={{ background: `${palette.bronze}22`, color: palette.bronze }}><Sparkles size={10} />{product.tag}</span>}
           <h1 style={{ ...fontDisplay, fontWeight: 500, color: palette.ink }} className="text-3xl md:text-4xl mb-3">{product.name}</h1>
@@ -918,23 +1022,46 @@ function ProductDetailContent({ productId, products, categories, reviews, palett
 }
 
 
+/* Small deterministic hash so the same photo always yields the same
+   mock analysis, but different photos yield different results —
+   previously the scores were a hard-coded constant regardless of the
+   uploaded image, so every skin type saw an identical outcome. */
+function hashImageString(str) {
+  let h = 0;
+  for (let i = 0; i < str.length; i += 23) h = (h * 31 + str.charCodeAt(i)) | 0;
+  return Math.abs(h) || 1;
+}
+function scoresFromImage(src) {
+  if (!src) return { hydration: 62, oil: 45, redness: 30, wrinkles: 22 };
+  const h = hashImageString(src);
+  const pick = (seed, min, max) => Math.floor(min + (Math.abs(Math.sin(seed)) * (max - min + 1)) % (max - min + 1));
+  return {
+    hydration: pick(h * 0.7, 38, 84),
+    oil: pick(h * 1.3, 18, 68),
+    redness: pick(h * 2.1, 6, 48),
+    wrinkles: pick(h * 2.9, 4, 42),
+  };
+}
 function AiSkinScannerModal({ palette, headingFont, products, fmt, onAddToCart, onClose }) {
   const [step, setStep] = useState("start"); // start | analyzing | result
   const [previewSrc, setPreviewSrc] = useState("");
-  const scores = { hydration: 62, oil: 45, redness: 30, wrinkles: 22 };
+  const [scores, setScores] = useState(null);
   const suggested = (products || []).slice(0, 3);
 
   function handleFile(e) {
     const file = e.target.files && e.target.files[0];
     if (!file) return;
     const reader = new FileReader();
-    reader.onload = () => setPreviewSrc(reader.result);
+    reader.onload = () => { setPreviewSrc(reader.result); setScores(null); };
     reader.readAsDataURL(file);
   }
+  function removePhoto() { setPreviewSrc(""); setScores(null); }
   function runScan() {
+    if (!previewSrc) return;
     setStep("analyzing");
-    setTimeout(() => setStep("result"), 1800);
+    setTimeout(() => { setScores(scoresFromImage(previewSrc)); setStep("result"); }, 1800);
   }
+  function rescan() { setStep("start"); }
   const ScoreBar = ({ label, value }) => (
     <div className="mb-3">
       <div className="flex items-center justify-between mb-1"><span style={{ fontSize: 12.5, color: palette.inkSoft }}>{label}</span><span style={{ fontSize: 12.5, color: palette.ink, fontWeight: 600 }}>{value}٪</span></div>
@@ -951,16 +1078,26 @@ function AiSkinScannerModal({ palette, headingFont, products, fmt, onAddToCart, 
 
         {step === "start" && (
           <div className="flex flex-col items-center gap-4">
-            <label className="w-full aspect-square max-w-[220px] rounded-3xl flex flex-col items-center justify-center gap-2 cursor-pointer border-2 border-dashed" style={{ borderColor: palette.beige, background: palette.creamDeep, overflow: "hidden" }}>
-              {previewSrc ? <img src={previewSrc} alt="پیش‌نمایش عکس آپلودشده برای تحلیل پوست" className="w-full h-full object-cover" /> : (
-                <>
-                  <ImagePlus size={26} style={{ color: palette.sageDeep }} />
-                  <span style={{ fontSize: 12, color: palette.inkSoft }}>آپلود عکس پوست</span>
-                </>
+            <div className="relative w-full max-w-[220px] aspect-square">
+              <label className="w-full h-full rounded-3xl flex flex-col items-center justify-center gap-2 cursor-pointer border-2 border-dashed" style={{ borderColor: palette.beige, background: palette.creamDeep, overflow: "hidden" }}>
+                {previewSrc ? <img src={previewSrc} alt="پیش‌نمایش عکس آپلودشده برای تحلیل پوست" className="w-full h-full object-cover" /> : (
+                  <>
+                    <ImagePlus size={26} style={{ color: palette.sageDeep }} />
+                    <span style={{ fontSize: 12, color: palette.inkSoft }}>آپلود عکس پوست</span>
+                  </>
+                )}
+                <input type="file" accept="image/*" capture="user" className="hidden" onChange={handleFile} />
+              </label>
+              {previewSrc && (
+                <button type="button" onClick={removePhoto} aria-label="حذف عکس و انتخاب عکس دیگر" className="absolute top-2 left-2 w-7 h-7 rounded-full flex items-center justify-center" style={{ background: `${palette.ink}CC` }}>
+                  <X size={14} style={{ color: palette.white }} />
+                </button>
               )}
-              <input type="file" accept="image/*" className="hidden" onChange={handleFile} />
-            </label>
-            <button onClick={runScan} className="w-full rounded-full py-3 text-sm font-medium" style={{ background: palette.sageDeep, color: palette.white }}>شروع اسکن</button>
+            </div>
+            {previewSrc && <p style={{ fontSize: 11.5, color: palette.inkSoft }}>برای انتخاب عکس دیگر روی تصویر بزنید یا از دکمه ✕ استفاده کنید.</p>}
+            <button onClick={runScan} disabled={!previewSrc} className="w-full rounded-full py-3 text-sm font-medium disabled:opacity-40" style={{ background: palette.sageDeep, color: palette.white }}>
+              {previewSrc ? "شروع اسکن" : "ابتدا یک عکس آپلود کنید"}
+            </button>
           </div>
         )}
 
@@ -971,8 +1108,14 @@ function AiSkinScannerModal({ palette, headingFont, products, fmt, onAddToCart, 
           </div>
         )}
 
-        {step === "result" && (
+        {step === "result" && scores && (
           <div>
+            <div className="flex items-center gap-3 mb-5">
+              <img src={previewSrc} alt="عکس تحلیل‌شده" className="w-12 h-12 rounded-2xl object-cover shrink-0" />
+              <button onClick={rescan} className="inline-flex items-center gap-1.5 text-xs font-medium underline underline-offset-4" style={{ color: palette.sageDeep }}>
+                <ImagePlus size={13} /> تغییر عکس و اسکن دوباره
+              </button>
+            </div>
             <div className="mb-5">
               <ScoreBar label="رطوبت پوست" value={scores.hydration} />
               <ScoreBar label="چربی پوست" value={scores.oil} />
@@ -1001,20 +1144,30 @@ function AiSkinScannerModal({ palette, headingFont, products, fmt, onAddToCart, 
 }
 
 
-function GlowCompareSlider({ palette }) {
+function GlowCompareSlider({ palette, beforeImage, afterImage, beforeLabel, afterLabel }) {
   const [pos, setPos] = useState(55);
   return (
     <div className="relative w-full max-w-2xl mx-auto rounded-[2rem] overflow-hidden select-none" style={{ aspectRatio: "16/9", boxShadow: `0 30px 70px -20px ${palette.ink}40` }}>
-      <div className="absolute inset-0" style={{ background: `radial-gradient(circle at 40% 35%, ${palette.beige}, ${palette.inkSoft}66 70%)`, filter: "saturate(0.55) brightness(0.9)" }} />
-      <div className="absolute inset-0" style={{ background: `radial-gradient(circle at 45% 35%, ${palette.white}, ${palette.nude} 55%, ${palette.sageMist} 100%)`, clipPath: `inset(0 0 0 ${100 - pos}%)`, transition: "clip-path 0.05s linear" }}>
-        <div className="absolute inset-0" style={{ background: `radial-gradient(circle at 55% 35%, ${palette.white}CC, transparent 45%)`, mixBlendMode: "overlay" }} />
+      {beforeImage ? (
+        <img src={beforeImage} alt={beforeLabel || "پیش از استفاده"} className="absolute inset-0 w-full h-full object-cover" style={{ filter: "saturate(0.85)" }} />
+      ) : (
+        <div className="absolute inset-0" style={{ background: `radial-gradient(circle at 40% 35%, ${palette.beige}, ${palette.inkSoft}66 70%)`, filter: "saturate(0.55) brightness(0.9)" }} />
+      )}
+      <div className="absolute inset-0" style={{ clipPath: `inset(0 0 0 ${100 - pos}%)`, transition: "clip-path 0.05s linear" }}>
+        {afterImage ? (
+          <img src={afterImage} alt={afterLabel || "پس از استفاده"} className="w-full h-full object-cover" />
+        ) : (
+          <div className="absolute inset-0" style={{ background: `radial-gradient(circle at 45% 35%, ${palette.white}, ${palette.nude} 55%, ${palette.sageMist} 100%)` }}>
+            <div className="absolute inset-0" style={{ background: `radial-gradient(circle at 55% 35%, ${palette.white}CC, transparent 45%)`, mixBlendMode: "overlay" }} />
+          </div>
+        )}
       </div>
       <div className="absolute inset-y-0 pointer-events-none" style={{ left: `${pos}%`, width: 2, background: palette.white, boxShadow: "0 0 12px rgba(0,0,0,0.35)" }} />
       <div className="absolute top-1/2 -translate-y-1/2 w-11 h-11 rounded-full flex items-center justify-center shadow-lg pointer-events-none" style={{ left: `calc(${pos}% - 22px)`, background: palette.white }}>
         <div className="flex gap-0.5"><ChevronDown size={12} style={{ color: palette.sageDeep, transform: "rotate(90deg)" }} /><ChevronDown size={12} style={{ color: palette.sageDeep, transform: "rotate(-90deg)" }} /></div>
       </div>
-      <span className="absolute top-4 right-4 rounded-full px-3 py-1 text-[11px] font-medium" style={{ background: `${palette.ink}99`, color: palette.white }}>پیش از استفاده</span>
-      <span className="absolute top-4 left-4 rounded-full px-3 py-1 text-[11px] font-medium" style={{ background: `${palette.sageDeep}CC`, color: palette.white }}>پس از ۲ هفته</span>
+      <span className="absolute top-4 right-4 rounded-full px-3 py-1 text-[11px] font-medium" style={{ background: `${palette.ink}99`, color: palette.white }}>{beforeLabel || "پیش از استفاده"}</span>
+      <span className="absolute top-4 left-4 rounded-full px-3 py-1 text-[11px] font-medium" style={{ background: `${palette.sageDeep}CC`, color: palette.white }}>{afterLabel || "پس از ۲ هفته"}</span>
       <input type="range" min="0" max="100" value={pos} onChange={(e) => setPos(Number(e.target.value))} className="absolute inset-0 w-full h-full opacity-0 cursor-ew-resize" aria-label="مقایسه پیش و پس از استفاده" />
     </div>
   );
@@ -1051,7 +1204,7 @@ function AnimatedHeroImage({ src, width = 420, height = 420, palette, rounded = 
    whatever colors/fonts the admin Customizer currently has set.
 ================================================================== */
 
-function Storefront({ products, categories, reviews, currencySettings, theme, layout, header, announcement, footer, banner, homeSections, faqs, welcomeModal, cart, setCart, user, freeShipThreshold, ingredientLibrary, quizSettings, quizQuestions, quizResults, rewardsSettings, onOpenAdmin, onGoAuth, onGoCheckout, customPage, initialCategorySlug, productId, customPages = [], bundles = [] }) {
+function Storefront({ products, categories, reviews, currencySettings, theme, layout, header, announcement, footer, banner, homeSections, faqs, welcomeModal, cart, setCart, user, freeShipThreshold, ingredientLibrary, quizSettings, quizQuestions, quizResults, rewardsSettings, onOpenAdmin, onGoAuth, onGoCheckout, customPage, initialCategorySlug, productId, customPages = [], bundles = [], glowSlider = DEFAULT_GLOW_SLIDER, about = DEFAULT_ABOUT, sectionCopy = DEFAULT_SECTION_COPY }) {
   const navigate = useNavigate();
   const palette = theme;
   const fontDisplay = { fontFamily: theme.headingFont };
@@ -1155,7 +1308,7 @@ function Storefront({ products, categories, reviews, currencySettings, theme, la
     if (quickView) {
       pageTitle = `${quickView.name} | خرید از ${BRAND_NAME}`;
       pageDesc = buildProductSeoDescription(quickView);
-      ogImage = quickView.mainImage || ogImage;
+      ogImage = getProductImages(quickView)[0] || ogImage;
       ogType = "product";
       breadcrumbs.push({ name: quickView.name, url: `${siteUrl}/#shop` });
     }
@@ -1183,7 +1336,7 @@ function Storefront({ products, categories, reviews, currencySettings, theme, la
       "@context": "https://schema.org",
       "@type": "Product",
       name: quickView.name,
-      image: quickView.mainImage ? [quickView.mainImage] : undefined,
+      image: getProductImages(quickView)[0] ? [getProductImages(quickView)[0]] : undefined,
       description: buildProductSeoDescription(quickView),
       brand: { "@type": "Brand", name: BRAND_NAME },
       sku: quickView.sku || undefined,
@@ -1380,6 +1533,13 @@ function Storefront({ products, categories, reviews, currencySettings, theme, la
   }
 
   /* ---------------- home sections ---------------- */
+  /* Lets any homepage section's kicker/heading text be overridden from
+     the admin's "چیدمان و نمایش" tab (sectionCopy[key]) without a code
+     change; empty override fields fall back to the built-in default. */
+  function secText(key, defaultKicker, defaultHeading) {
+    const override = (sectionCopy && sectionCopy[key]) || {};
+    return { kicker: override.kicker || defaultKicker, heading: override.heading || defaultHeading };
+  }
   const sectionRenderers = {
     hero: () => (
       <section id="home" key="hero" className="relative overflow-hidden">
@@ -1449,11 +1609,13 @@ function Storefront({ products, categories, reviews, currencySettings, theme, la
         </Reveal>
       </section>
     ) : null,
-    categories: () => (
+    categories: () => {
+      const t = secText("categories", "خرید بر اساس دسته‌بندی", "آیینی برای هر مرحله");
+      return (
       <section id="categories" key="categories" className="max-w-7xl mx-auto px-5 md:px-8 py-16 md:py-24">
         <RevealHeading className="mb-10 md:mb-14 max-w-xl">
-          <p style={{ color: palette.sageDeep, fontSize: 13, fontWeight: 600 }} className="mb-3">خرید بر اساس دسته‌بندی</p>
-          <h2 style={{ ...fontDisplay, fontWeight: 500, color: palette.ink }} className="text-3xl md:text-4xl">آیینی برای هر مرحله</h2>
+          <p style={{ color: palette.sageDeep, fontSize: 13, fontWeight: 600 }} className="mb-3">{t.kicker}</p>
+          <h2 style={{ ...fontDisplay, fontWeight: 500, color: palette.ink }} className="text-3xl md:text-4xl">{t.heading}</h2>
         </RevealHeading>
         {categories.length === 0 ? (
           <EmptyState icon={Layers} title="هنوز دسته‌بندی‌ای اضافه نشده است" subtitle="دسته‌بندی‌های فروشگاه به‌زودی از پنل مدیریت اضافه می‌شوند." palette={palette} />
@@ -1488,12 +1650,15 @@ function Storefront({ products, categories, reviews, currencySettings, theme, la
           </div>
         )}
       </section>
-    ),
-    concerns: () => (
+      );
+    },
+    concerns: () => {
+      const t = secText("concerns", "دسته‌بندی بر اساس عارضه پوستی", "خرید بر اساس نیاز پوستی");
+      return (
       <section id="concerns" key="concerns" className="max-w-7xl mx-auto px-5 md:px-8 py-16 md:py-20">
         <RevealHeading className="mb-10 max-w-xl">
-          <p style={{ color: palette.sageDeep, fontSize: 13, fontWeight: 600 }} className="mb-3">دسته‌بندی بر اساس عارضه پوستی</p>
-          <h2 style={{ ...fontDisplay, fontWeight: 500, color: palette.ink }} className="text-3xl md:text-4xl">خرید بر اساس نیاز پوستی</h2>
+          <p style={{ color: palette.sageDeep, fontSize: 13, fontWeight: 600 }} className="mb-3">{t.kicker}</p>
+          <h2 style={{ ...fontDisplay, fontWeight: 500, color: palette.ink }} className="text-3xl md:text-4xl">{t.heading}</h2>
         </RevealHeading>
         <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 md:gap-5">
           {SKIN_CONCERN_OPTIONS.map((c, i) => {
@@ -1517,17 +1682,19 @@ function Storefront({ products, categories, reviews, currencySettings, theme, la
           })}
         </div>
       </section>
-    ),
+      );
+    },
     bestsellers: () => {
       const featured = products.filter((pr) => pr.tag === "پرفروش‌ترین‌ها");
       const list = (featured.length > 0 ? featured : products).slice(0, 10);
       if (list.length === 0) return null;
+      const t = secText("bestsellers", "پرفروش‌ترین‌های وینا", "مورد علاقه مشتریان");
       return (
         <section key="bestsellers" className="py-16 md:py-20 overflow-hidden">
           <div className="max-w-7xl mx-auto px-5 md:px-8 flex items-end justify-between mb-8">
             <RevealHeading>
-              <p style={{ color: palette.sageDeep, fontSize: 13, fontWeight: 600 }} className="mb-3">پرفروش‌ترین‌های ویینا</p>
-              <h2 style={{ ...fontDisplay, fontWeight: 500, color: palette.ink }} className="text-3xl md:text-4xl">مورد علاقه مشتریان</h2>
+              <p style={{ color: palette.sageDeep, fontSize: 13, fontWeight: 600 }} className="mb-3">{t.kicker}</p>
+              <h2 style={{ ...fontDisplay, fontWeight: 500, color: palette.ink }} className="text-3xl md:text-4xl">{t.heading}</h2>
             </RevealHeading>
             <p className="hidden sm:block" style={{ fontSize: 12.5, color: palette.inkSoft }}>برای پیمایش بکشید ←</p>
           </div>
@@ -1537,9 +1704,7 @@ function Storefront({ products, categories, reviews, currencySettings, theme, la
                 <div className="product-card group rounded-3xl overflow-hidden border flex flex-col" style={{ width: "min(78vw, 300px)", borderColor: palette.beige, background: palette.white, "--glow": `${palette.bronze}4D` }}>
                   <div className="relative flex items-center justify-center overflow-hidden" style={{ height: 260, background: palette.creamDeep }}>
                     <div className="product-lifestyle absolute inset-0 opacity-0 group-hover:opacity-100" style={{ background: `radial-gradient(circle at 60% 30%, ${palette.nudeDeep}55, ${palette.bronze}33 45%, transparent 75%)` }} />
-                    <div className="relative z-[5] drop-anim flex items-center justify-center transition-transform duration-500 group-hover:scale-110" style={{ width: 172, height: 172, background: `${p.tint}55` }}>
-                      <div className="scale-150"><Bottle tint={p.tint} ink={palette.ink} white={palette.white} label={`${p.name} - خرید از ${BRAND_NAME}`} /></div>
-                    </div>
+                    <ProductVisual product={p} categories={categories} palette={palette} size={172} fill={getProductImages(p).length > 0} iconScaleClass="scale-150" />
                   </div>
                   <div className="p-5 flex flex-col flex-1">
                     {p.tag && <span className="inline-flex items-center gap-1 rounded-full px-2.5 py-1 text-[10.5px] font-medium mb-2 self-start" style={{ background: `${palette.bronze}22`, color: palette.bronze, boxShadow: `0 0 14px ${palette.bronze}33` }}><Sparkles size={10} />{p.tag}</span>}
@@ -1570,13 +1735,14 @@ function Storefront({ products, categories, reviews, currencySettings, theme, la
       function shopFullSet() {
         steps.forEach((s) => addToCart(selectedFor(s)));
       }
+      const t = secText("routine", "روتین خود را بسازید", "یک قدم تا روتین کامل");
       return (
         <section key="routine" className="relative py-16 md:py-24 overflow-hidden" style={{ background: palette.sageMist }}>
           <GlowBlob colors={[`${palette.nude}`, `${palette.nude}00`]} style={{ width: 480, height: 480, top: "-10%", left: "-8%" }} />
           <div className="relative max-w-7xl mx-auto px-5 md:px-8">
             <RevealHeading className="mb-10 md:mb-14 max-w-xl">
-              <p style={{ color: palette.sageDeep, fontSize: 13, fontWeight: 600 }} className="mb-3">روتین خود را بسازید</p>
-              <h2 style={{ ...fontDisplay, fontWeight: 500, color: palette.ink }} className="text-3xl md:text-4xl">یک قدم تا روتین کامل</h2>
+              <p style={{ color: palette.sageDeep, fontSize: 13, fontWeight: 600 }} className="mb-3">{t.kicker}</p>
+              <h2 style={{ ...fontDisplay, fontWeight: 500, color: palette.ink }} className="text-3xl md:text-4xl">{t.heading}</h2>
               <p style={{ color: palette.inkSoft, fontSize: 14.5 }} className="mt-3">از هر مرحله یک محصول انتخاب کنید و مجموعه کامل را یک‌جا به سبد اضافه کنید.</p>
             </RevealHeading>
             <div className={`grid gap-6 mb-10`} style={{ gridTemplateColumns: `repeat(${steps.length}, minmax(0, 1fr))` }}>
@@ -1640,11 +1806,12 @@ function Storefront({ products, categories, reviews, currencySettings, theme, la
         .map((b) => ({ ...b, items: (b.productIds || []).map((id) => products.find((pr) => pr.id === id)).filter(Boolean) }))
         .filter((b) => b.items.length >= 2);
       if (validBundles.length === 0) return null;
+      const t = secText("bundles", "بسته‌های روتین کامل با یک کلیک", "روتین کامل، انتخاب هوشمندانه");
       return (
         <section key="bundles" className="max-w-7xl mx-auto px-5 md:px-8 py-16 md:py-20">
           <RevealHeading className="mb-10 max-w-xl">
-            <p style={{ color: palette.sageDeep, fontSize: 13, fontWeight: 600 }} className="mb-3">بسته‌های روتین کامل با یک کلیک</p>
-            <h2 style={{ ...fontDisplay, fontWeight: 500, color: palette.ink }} className="text-3xl md:text-4xl">روتین کامل، انتخاب هوشمندانه</h2>
+            <p style={{ color: palette.sageDeep, fontSize: 13, fontWeight: 600 }} className="mb-3">{t.kicker}</p>
+            <h2 style={{ ...fontDisplay, fontWeight: 500, color: palette.ink }} className="text-3xl md:text-4xl">{t.heading}</h2>
           </RevealHeading>
           <div className="grid md:grid-cols-2 gap-6">
             {validBundles.map((b, i) => {
@@ -1683,28 +1850,32 @@ function Storefront({ products, categories, reviews, currencySettings, theme, la
         </section>
       );
     },
-    glowSlider: () => (
+    glowSlider: () => {
+      const t = secText("glowSlider", "نتیجه‌ای که حس می‌کنید", "شفافیت و شادابی، از نو");
+      return (
       <section key="glowSlider" className="relative py-16 md:py-24 overflow-hidden">
         <GlowBlob colors={[`${palette.sageMist}`, `${palette.sageMist}00`]} style={{ width: 440, height: 440, top: "-6%", right: "-6%" }} />
         <div className="relative max-w-7xl mx-auto px-5 md:px-8">
           <RevealHeading className="mb-10 md:mb-14 max-w-xl mx-auto text-center">
-            <p style={{ color: palette.sageDeep, fontSize: 13, fontWeight: 600 }} className="mb-3">نتیجه‌ای که حس می‌کنید</p>
-            <h2 style={{ ...fontDisplay, fontWeight: 500, color: palette.ink }} className="text-3xl md:text-4xl mb-3">شفافیت و شادابی، از نو</h2>
+            <p style={{ color: palette.sageDeep, fontSize: 13, fontWeight: 600 }} className="mb-3">{t.kicker}</p>
+            <h2 style={{ ...fontDisplay, fontWeight: 500, color: palette.ink }} className="text-3xl md:text-4xl mb-3">{t.heading}</h2>
             <p style={{ color: palette.inkSoft, fontSize: 14.5 }}>نوار زیر را بکشید تا تفاوت آبرسانی و درخشش پوست را ببینید.</p>
           </RevealHeading>
-          <Reveal delay={0.1}><GlowCompareSlider palette={palette} /></Reveal>
+          <Reveal delay={0.1}><GlowCompareSlider palette={palette} beforeImage={glowSlider.beforeImage} afterImage={glowSlider.afterImage} beforeLabel={glowSlider.beforeLabel} afterLabel={glowSlider.afterLabel} /></Reveal>
         </div>
       </section>
-    ),
+      );
+    },
     ingredients: () => {
       if (!ingredientLibrary || ingredientLibrary.length === 0) return null;
+      const t = secText("ingredients", "دایره‌المعارف ترکیبات", "Ingredientspedia");
       return (
         <section key="ingredients" id="ingredients" className="relative py-16 md:py-24 overflow-hidden" style={{ background: palette.creamDeep }}>
           <GlowBlob colors={[`${palette.sage}`, `${palette.sage}00`]} style={{ width: 420, height: 420, top: "-8%", left: "-6%" }} />
           <div className="relative max-w-7xl mx-auto px-5 md:px-8">
             <RevealHeading className="mb-10 md:mb-14 max-w-xl">
-              <p style={{ color: palette.sageDeep, fontSize: 13, fontWeight: 600 }} className="mb-3">دایره‌المعارف ترکیبات</p>
-              <h2 style={{ ...fontDisplay, fontWeight: 500, color: palette.ink }} className="text-3xl md:text-4xl mb-3">Ingredientspedia</h2>
+              <p style={{ color: palette.sageDeep, fontSize: 13, fontWeight: 600 }} className="mb-3">{t.kicker}</p>
+              <h2 style={{ ...fontDisplay, fontWeight: 500, color: palette.ink }} className="text-3xl md:text-4xl mb-3">{t.heading}</h2>
               <p style={{ color: palette.inkSoft, fontSize: 14.5 }}>با ترکیبات طبیعی داخل کالکشن ویینا و فایده هرکدام برای پوست آشنا شوید.</p>
             </RevealHeading>
             <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-5">
@@ -1742,8 +1913,8 @@ function Storefront({ products, categories, reviews, currencySettings, theme, la
         <div className="relative max-w-7xl mx-auto px-5 md:px-8">
           <RevealHeading className="flex flex-col md:flex-row md:items-end md:justify-between gap-6 mb-10">
             <div>
-              <p style={{ color: palette.sageDeep, fontSize: 13, fontWeight: 600 }} className="mb-3">محصولات منتخب</p>
-              <h2 style={{ ...fontDisplay, fontWeight: 500, color: palette.ink }} className="text-3xl md:text-4xl">{activeCategory ? activeCategory.name : activeConcern ? activeConcern : "کالکشن ویینا"}</h2>
+              <p style={{ color: palette.sageDeep, fontSize: 13, fontWeight: 600 }} className="mb-3">{secText("shop", "محصولات منتخب", "کالکشن ویینا").kicker}</p>
+              <h2 style={{ ...fontDisplay, fontWeight: 500, color: palette.ink }} className="text-3xl md:text-4xl">{activeCategory ? activeCategory.name : activeConcern ? activeConcern : secText("shop", "محصولات منتخب", "کالکشن ویینا").heading}</h2>
               {activeCategory && (
                 <button onClick={clearCategoryFilter} className="mt-3 inline-flex items-center gap-1.5 rounded-full px-3.5 py-1.5 text-xs font-medium border" style={{ borderColor: palette.beige, color: palette.inkSoft }}>
                   <X size={12} /> بازگشت به همه دسته‌بندی‌ها
@@ -1794,9 +1965,7 @@ function Storefront({ products, categories, reviews, currencySettings, theme, la
                               <Eye size={12} /> نمای سریع
                             </button>
                           )}
-                          <div className="relative z-[5] drop-anim flex items-center justify-center transition-transform duration-500 group-hover:scale-110" style={{ width: 128, height: 128, background: `${p.tint}55` }}>
-                            <Bottle tint={p.tint} ink={palette.ink} white={palette.white} label={buildProductAltText(p, categories)} />
-                          </div>
+                          <ProductVisual product={p} categories={categories} palette={palette} size={128} fill={getProductImages(p).length > 0} />
                         </div>
                         <div className="p-5 flex flex-col flex-1">
                           {p.tag && <span className="inline-flex items-center gap-1 rounded-full px-2.5 py-1 text-[10.5px] font-medium mb-2 self-start" style={{ background: `${palette.bronze}22`, color: palette.bronze, boxShadow: `0 0 14px ${palette.bronze}33` }}><Sparkles size={10} />{p.tag}</span>}
@@ -1849,7 +2018,9 @@ function Storefront({ products, categories, reviews, currencySettings, theme, la
         </div>
       </section>
     ),
-    about: () => (
+    about: () => {
+      const t = secText("about", "فلسفه ما", "گلچین‌شده با دقت و صبر");
+      return (
       <section id="about" key="about" className="relative max-w-7xl mx-auto px-5 md:px-8 py-16 md:py-24 grid lg:grid-cols-2 gap-12 items-center overflow-hidden">
         {[
           { top: "10%", left: "44%", size: 5, dur: 8, delay: 0.3 },
@@ -1858,9 +2029,9 @@ function Storefront({ products, categories, reviews, currencySettings, theme, la
           <span key={i} aria-hidden="true" className="water-particle pointer-events-none absolute rounded-full hidden lg:block"
             style={{ top: d.top, left: d.left, width: d.size, height: d.size, background: `${palette.sage}CC`, boxShadow: `0 0 8px ${palette.sage}`, animationDuration: `${d.dur}s`, animationDelay: `${d.delay}s`, "--drift": "10px" }} />
         ))}
-        <Reveal className="order-2 lg:order-1">
-          <p style={{ color: palette.sageDeep, fontSize: 13, fontWeight: 600 }} className="mb-3">فلسفه ما</p>
-          <h2 style={{ ...fontDisplay, fontWeight: 500, color: palette.ink }} className="text-3xl md:text-4xl mb-5">گلچین‌شده با دقت و صبر</h2>
+        <Reveal className={about.hideImage ? "lg:col-span-2" : "order-2 lg:order-1"}>
+          <p style={{ color: palette.sageDeep, fontSize: 13, fontWeight: 600 }} className="mb-3">{t.kicker}</p>
+          <h2 style={{ ...fontDisplay, fontWeight: 500, color: palette.ink }} className="text-3xl md:text-4xl mb-5">{t.heading}</h2>
           <p style={{ color: palette.inkSoft, fontSize: 16, lineHeight: 1.95 }} className="mb-5">ویینا از یک دغدغه ساده شروع شد: بازاریابی محصولات پوستی جلوتر از علم آن‌ها حرکت می‌کرد. ویینا فروشگاه تخصصی محصولات مراقبت پوستی است؛ تیم ما در کنار متخصصان پوست، معتبرترین برندهای دنیا را با کمترین و هدفمندترین ترکیبات برای شما گلچین می‌کند.</p>
           <p style={{ color: palette.inkSoft, fontSize: 16, lineHeight: 1.95 }} className="mb-8">موجودی هر محصول در مقیاس محدود تأمین می‌شود، تا آنچه دریافت می‌کنید همیشه تازه و اصل باشد.</p>
           <div className="grid grid-cols-3 gap-4">
@@ -1872,20 +2043,31 @@ function Storefront({ products, categories, reviews, currencySettings, theme, la
             ))}
           </div>
         </Reveal>
-        <Reveal delay={0.1} className="order-1 lg:order-2 flex justify-center">
-          <div className="drop-anim flex items-center justify-center" style={{ width: "min(360px,80vw)", height: "min(360px,80vw)", background: `linear-gradient(150deg, ${palette.sageMist}, ${palette.nude}88)` }}>
-            <Sparkles size={56} style={{ color: palette.sageDeep }} className="float-slow" />
-          </div>
-        </Reveal>
+        {!about.hideImage && (
+          <Reveal delay={0.1} className="order-1 lg:order-2 flex justify-center">
+            {about.image ? (
+              <div className="rounded-[2rem] overflow-hidden" style={{ width: "min(360px,80vw)", height: "min(360px,80vw)" }}>
+                <img src={about.image} alt="فلسفه ویینا" className="w-full h-full object-cover" />
+              </div>
+            ) : (
+              <div className="drop-anim flex items-center justify-center" style={{ width: "min(360px,80vw)", height: "min(360px,80vw)", background: `linear-gradient(150deg, ${palette.sageMist}, ${palette.nude}88)` }}>
+                <Sparkles size={56} style={{ color: palette.sageDeep }} className="float-slow" />
+              </div>
+            )}
+          </Reveal>
+        )}
       </section>
-    ),
-    reviews: () => (
+      );
+    },
+    reviews: () => {
+      const t = secText("reviews", "نتایج واقعی", "نظر جامعه مشتریان ما");
+      return (
       <section id="reviews" key="reviews" className="relative py-16 md:py-24 overflow-hidden" style={{ background: palette.sageMist }}>
         <GlowBlob colors={[`${palette.bronze}`, `${palette.bronze}00`]} style={{ width: 500, height: 500, top: "-8%", right: "-8%" }} />
         <div className="relative max-w-7xl mx-auto px-5 md:px-8">
           <RevealHeading className="mb-10 md:mb-14 max-w-xl">
-            <p style={{ color: palette.sageDeep, fontSize: 13, fontWeight: 600 }} className="mb-3">نتایج واقعی</p>
-            <h2 style={{ ...fontDisplay, fontWeight: 500, color: palette.ink }} className="text-3xl md:text-4xl">نظر جامعه مشتریان ما</h2>
+            <p style={{ color: palette.sageDeep, fontSize: 13, fontWeight: 600 }} className="mb-3">{t.kicker}</p>
+            <h2 style={{ ...fontDisplay, fontWeight: 500, color: palette.ink }} className="text-3xl md:text-4xl">{t.heading}</h2>
           </RevealHeading>
           {approvedReviews.length === 0 ? (
             <EmptyState icon={MessageSquare} title="هنوز نظری ثبت نشده است" subtitle="نظرات تأییدشده مشتریان پس از ثبت، اینجا نمایش داده می‌شوند." palette={palette} />
@@ -1918,7 +2100,8 @@ function Storefront({ products, categories, reviews, currencySettings, theme, la
           </Reveal>
         </div>
       </section>
-    ),
+      );
+    },
     trust: () => (
       <section key="trust" className="max-w-7xl mx-auto px-5 md:px-8 py-14">
         <div className="rounded-3xl p-8 md:p-10 grid sm:grid-cols-3 gap-8" style={{ background: palette.ink }}>
@@ -1941,11 +2124,12 @@ function Storefront({ products, categories, reviews, currencySettings, theme, la
     journal: () => {
       const journalPages = customPages.filter((pg) => pg.isJournal).slice(0, 3);
       if (journalPages.length === 0) return null;
+      const t = secText("journal", "ژورنال ویینا", "راهنمای مراقبت از پوست");
       return (
         <section key="journal" className="max-w-7xl mx-auto px-5 md:px-8 py-16 md:py-20">
           <RevealHeading className="mb-10 max-w-xl">
-            <p style={{ color: palette.sageDeep, fontSize: 13, fontWeight: 600 }} className="mb-3">ژورنال ویینا</p>
-            <h2 style={{ ...fontDisplay, fontWeight: 500, color: palette.ink }} className="text-3xl md:text-4xl">راهنمای مراقبت از پوست</h2>
+            <p style={{ color: palette.sageDeep, fontSize: 13, fontWeight: 600 }} className="mb-3">{t.kicker}</p>
+            <h2 style={{ ...fontDisplay, fontWeight: 500, color: palette.ink }} className="text-3xl md:text-4xl">{t.heading}</h2>
           </RevealHeading>
           <div className="grid md:grid-cols-3 gap-6">
             {journalPages.map((pg, i) => (
@@ -1968,11 +2152,13 @@ function Storefront({ products, categories, reviews, currencySettings, theme, la
         </section>
       );
     },
-    contact: () => (
+    contact: () => {
+      const t = secText("contact", "در تماس باشید", "ما اینجا هستیم تا کمک کنیم");
+      return (
       <section id="contact" key="contact" className="max-w-7xl mx-auto px-5 md:px-8 py-16 md:py-24 grid lg:grid-cols-2 gap-14">
         <Reveal>
-          <p style={{ color: palette.sageDeep, fontSize: 13, fontWeight: 600 }} className="mb-3">در تماس باشید</p>
-          <h2 style={{ ...fontDisplay, fontWeight: 500, color: palette.ink }} className="text-3xl md:text-4xl mb-8">ما اینجا هستیم تا کمک کنیم</h2>
+          <p style={{ color: palette.sageDeep, fontSize: 13, fontWeight: 600 }} className="mb-3">{t.kicker}</p>
+          <h2 style={{ ...fontDisplay, fontWeight: 500, color: palette.ink }} className="text-3xl md:text-4xl mb-8">{t.heading}</h2>
           {contactSent ? (
             <div className="rounded-3xl p-8 flex flex-col items-center text-center" style={{ background: palette.sageMist }}>
               <Check size={28} style={{ color: palette.sageDeep }} className="mb-3" />
@@ -2013,7 +2199,8 @@ function Storefront({ products, categories, reviews, currencySettings, theme, la
           </div>
         </Reveal>
       </section>
-    ),
+      );
+    },
   };
 
   return (
@@ -2282,8 +2469,8 @@ function Storefront({ products, categories, reviews, currencySettings, theme, la
           <div className="absolute inset-0" style={{ background: `${palette.ink}88` }} onClick={() => setQuickView(null)} />
           <div className="relative w-full max-w-lg rounded-3xl p-6 flex flex-col sm:flex-row gap-5" style={{ background: palette.white }}>
             <button onClick={() => setQuickView(null)} className="absolute top-4 left-4" aria-label="بستن"><X size={18} /></button>
-            <div className="rounded-2xl flex items-center justify-center shrink-0 mx-auto sm:mx-0" style={{ width: 140, height: 140, background: `${quickView.tint}55` }}>
-              <Bottle tint={quickView.tint} ink={palette.ink} white={palette.white} label={buildProductAltText(quickView, categories)} />
+            <div className="relative rounded-2xl overflow-hidden flex items-center justify-center shrink-0 mx-auto sm:mx-0" style={{ width: 140, height: 140, background: `${quickView.tint}55` }}>
+              <ProductVisual product={quickView} categories={categories} palette={palette} size={140} fill={getProductImages(quickView).length > 0} />
             </div>
             <div className="flex-1">
               {quickView.tag && <p style={{ fontSize: 11, color: palette.bronze }} className="font-medium mb-1">{quickView.tag}</p>}
@@ -2770,7 +2957,6 @@ function AuthPage({ theme, authSettings, onLogin, onBack }) {
               {otpVerifying && !otpError && <p style={{ fontSize: 12.5, color: palette.inkSoft }} className="mb-2">در حال بررسی کد…</p>}
 
               <button type="button" onClick={() => { setOtp(""); setOtpError(false); }} className="text-xs underline underline-offset-4 mt-3" style={{ color: palette.sageDeep }}>ارسال مجدد کد</button>
-              <p style={{ fontSize: 10.5, color: palette.inkSoft }} className="mt-6 max-w-xs leading-relaxed">در این پیش‌نمایش پیامک واقعی ارسال نمی‌شود؛ برای ادامه کد <b dir="ltr">1234</b> را وارد کنید.</p>
             </div>
           )}
         </div>
@@ -3016,7 +3202,7 @@ const ADMIN_PALETTE = THEME_PRESETS["مینیمال گرم"];
 function emptyProductDraft() {
   return { title: "", sku: "", tag: "جدید", shortDescription: "", description: "", price: "", salePrice: "", cost: "",
     stock: "", threshold: "10", category: "", subCategory: "", skinTags: [], concerns: [], volume: "", ingredients: "",
-    mainImage: "", hoverImage: "", extraImage: "", metaTitle: "", metaDescription: "", slug: "" };
+    images: [], metaTitle: "", metaDescription: "", slug: "" };
 }
 /* Reusable single-field version of the product form's upload
    handler, for the other admin image fields (category banner,
@@ -3054,22 +3240,33 @@ function ImageUploadField({ value, onChange, placeholder }) {
 
 function ProductFormModal({ draft, setDraft, onCancel, onSave, isEdit, categories }) {
   const p = ADMIN_PALETTE;
-  const [uploadState, setUploadState] = useState({}); // { [fieldKey]: "uploading" | "error" | undefined }
-  const [uploadError, setUploadError] = useState({});
   function toggleSkinTag(tag) { setDraft((d) => ({ ...d, skinTags: d.skinTags.includes(tag) ? d.skinTags.filter((t) => t !== tag) : [...d.skinTags, tag] })); }
   function toggleConcern(c) { setDraft((d) => ({ ...d, concerns: d.concerns.includes(c) ? d.concerns.filter((t) => t !== c) : [...d.concerns, c] })); }
-  async function handleImageUpload(key, file) {
-    if (!file) return;
-    setUploadState((s) => ({ ...s, [key]: "uploading" }));
-    setUploadError((s) => ({ ...s, [key]: "" }));
-    const { url, error } = await uploadProductImage(file);
-    if (error) {
-      setUploadState((s) => ({ ...s, [key]: "error" }));
-      setUploadError((s) => ({ ...s, [key]: error }));
-      return;
+  const [galleryUploading, setGalleryUploading] = useState(false);
+  const [galleryError, setGalleryError] = useState("");
+  async function handleGalleryUpload(fileList) {
+    const files = Array.from(fileList || []);
+    if (files.length === 0) return;
+    setGalleryUploading(true);
+    setGalleryError("");
+    const uploaded = [];
+    for (const file of files) {
+      const { url, error } = await uploadProductImage(file);
+      if (error) { setGalleryError(error); continue; }
+      if (url) uploaded.push(url);
     }
-    setDraft((d) => ({ ...d, [key]: url }));
-    setUploadState((s) => ({ ...s, [key]: undefined }));
+    if (uploaded.length > 0) setDraft((d) => ({ ...d, images: [...(d.images || []), ...uploaded] }));
+    setGalleryUploading(false);
+  }
+  function removeGalleryImage(i) { setDraft((d) => ({ ...d, images: (d.images || []).filter((_, idx) => idx !== i) })); }
+  function moveGalleryImage(i, dir) {
+    setDraft((d) => {
+      const next = [...(d.images || [])];
+      const j = i + dir;
+      if (j < 0 || j >= next.length) return d;
+      [next[i], next[j]] = [next[j], next[i]];
+      return { ...d, images: next };
+    });
   }
   return (
     <ModalShell onClose={onCancel} title={isEdit ? "ویرایش محصول" : "افزودن محصول جدید"} wide palette={p}>
@@ -3143,29 +3340,36 @@ function ProductFormModal({ draft, setDraft, onCancel, onSave, isEdit, categorie
 
         <div className="flex flex-col gap-3 pt-2 border-t" style={{ borderColor: p.creamDeep }}>
           <p style={{ fontSize: 12, color: p.sageDeep, fontWeight: 600 }} className="pt-3">گالری تصاویر</p>
-          <p style={{ fontSize: 11, color: p.inkSoft }}>تصاویر مستقیماً در Supabase Storage آپلود می‌شوند و آدرس عمومی و امن آن‌ها ذخیره می‌شود.</p>
-          {[["mainImage", "تصویر اصلی"], ["hoverImage", "تصویر هاور"], ["extraImage", "تصویر تکمیلی"]].map(([key, label]) => (
-            <div key={key} className="flex flex-col gap-1.5">
-              <div className="flex items-center gap-2 rounded-2xl px-4 py-2.5 border" style={{ borderColor: uploadState[key] === "error" ? "#C0392B" : p.beige }}>
-                {draft[key] ? (
-                  <img src={draft[key]} alt="" className="w-8 h-8 rounded-lg object-cover shrink-0" />
-                ) : (
-                  <ImagePlus size={15} style={{ color: p.inkSoft }} className="shrink-0" />
-                )}
-                <input placeholder={`${label} — آدرس تصویر یا آپلود مستقیم`} value={draft[key]} onChange={(e) => setDraft({ ...draft, [key]: e.target.value })} className="flex-1 text-sm outline-none min-w-0" style={{ color: p.ink }} dir="ltr" />
-                <label className="flex items-center gap-1 text-xs font-medium px-3 py-1.5 rounded-full cursor-pointer shrink-0" style={{ background: p.creamDeep, color: p.inkSoft }}>
-                  {uploadState[key] === "uploading" ? (
-                    <span className="w-3 h-3 rounded-full border-2 animate-spin shrink-0" style={{ borderColor: p.beige, borderTopColor: p.sageDeep }} />
-                  ) : (
-                    <Upload size={12} />
-                  )}
-                  {uploadState[key] === "uploading" ? "در حال آپلود…" : "آپلود"}
-                  <input type="file" accept="image/*" className="hidden" disabled={uploadState[key] === "uploading"} onChange={(e) => handleImageUpload(key, e.target.files && e.target.files[0])} />
-                </label>
-              </div>
-              {uploadState[key] === "error" && <p style={{ fontSize: 11, color: "#C0392B" }}>{uploadError[key]}</p>}
+          <p style={{ fontSize: 11, color: p.inkSoft }}>تصاویر مستقیماً در Supabase Storage آپلود می‌شوند. می‌توانید چند عکس همزمان انتخاب کنید؛ اولین عکس، تصویر اصلی کارت محصول است و با فلش‌ها می‌توانید ترتیب را تغییر دهید.</p>
+
+          {(draft.images || []).length > 0 && (
+            <div className="grid grid-cols-3 sm:grid-cols-4 gap-3">
+              {draft.images.map((src, i) => (
+                <div key={`${src}-${i}`} className="relative rounded-2xl overflow-hidden border" style={{ borderColor: p.beige, aspectRatio: "1/1" }}>
+                  <img src={src} alt="" className="w-full h-full object-cover" />
+                  {i === 0 && <span className="absolute top-1.5 right-1.5 rounded-full px-2 py-0.5 text-[10px] font-medium" style={{ background: `${p.ink}CC`, color: p.white }}>اصلی</span>}
+                  <div className="absolute bottom-1.5 inset-x-1.5 flex items-center justify-between gap-1">
+                    <div className="flex items-center gap-1">
+                      <button type="button" onClick={() => moveGalleryImage(i, -1)} disabled={i === 0} aria-label="جابه‌جایی به راست" className="w-6 h-6 rounded-full flex items-center justify-center" style={{ background: `${p.white}E6`, opacity: i === 0 ? 0.4 : 1 }}><ChevronRight size={12} style={{ color: p.ink }} /></button>
+                      <button type="button" onClick={() => moveGalleryImage(i, 1)} disabled={i === draft.images.length - 1} aria-label="جابه‌جایی به چپ" className="w-6 h-6 rounded-full flex items-center justify-center" style={{ background: `${p.white}E6`, opacity: i === draft.images.length - 1 ? 0.4 : 1 }}><ChevronRight size={12} style={{ color: p.ink, transform: "scaleX(-1)" }} /></button>
+                    </div>
+                    <button type="button" onClick={() => removeGalleryImage(i)} aria-label="حذف تصویر" className="w-6 h-6 rounded-full flex items-center justify-center" style={{ background: `${p.white}E6` }}><Trash2 size={12} style={{ color: "#A5453A" }} /></button>
+                  </div>
+                </div>
+              ))}
             </div>
-          ))}
+          )}
+
+          <label className="flex items-center justify-center gap-2 rounded-2xl px-4 py-4 border-2 border-dashed cursor-pointer" style={{ borderColor: galleryError ? "#C0392B" : p.beige, color: p.inkSoft }}>
+            {galleryUploading ? (
+              <span className="w-4 h-4 rounded-full border-2 animate-spin shrink-0" style={{ borderColor: p.beige, borderTopColor: p.sageDeep }} />
+            ) : (
+              <ImagePlus size={16} />
+            )}
+            <span className="text-xs font-medium">{galleryUploading ? "در حال آپلود…" : "افزودن یک یا چند عکس"}</span>
+            <input type="file" accept="image/*" multiple className="hidden" disabled={galleryUploading} onChange={(e) => handleGalleryUpload(e.target.files)} />
+          </label>
+          {galleryError && <p style={{ fontSize: 11, color: "#C0392B" }}>{galleryError}</p>}
         </div>
 
         <div className="flex flex-col gap-3 pt-2 border-t" style={{ borderColor: p.creamDeep }}>
@@ -3573,7 +3777,11 @@ function ProductsTab({ products, categories, currencySettings, onAdd, onEdit, on
               return (
                 <tr key={pr.id} style={{ borderBottom: `1px solid ${p.creamDeep}` }}>
                   <td className="px-5 py-3"><input type="checkbox" checked={selected.includes(pr.id)} onChange={() => toggleSelect(pr.id)} /></td>
-                  <td className="px-5 py-3"><div className="rounded-xl flex items-center justify-center" style={{ width: 42, height: 42, background: `${pr.tint}55` }}><div className="scale-50"><Bottle tint={pr.tint} ink={p.ink} white={p.white} /></div></div></td>
+                  <td className="px-5 py-3">
+                    <div className="relative rounded-xl overflow-hidden flex items-center justify-center" style={{ width: 42, height: 42, background: `${pr.tint}55` }}>
+                      {getProductImages(pr)[0] ? <img src={getProductImages(pr)[0]} alt="" className="w-full h-full object-cover" /> : <div className="scale-50"><Bottle tint={pr.tint} ink={p.ink} white={p.white} /></div>}
+                    </div>
+                  </td>
                   <td className="px-5 py-3" style={{ fontFamily: "'Noto Serif Arabic', serif", fontSize: 14, color: p.ink }}>{pr.name}</td>
                   <td className="px-5 py-3" style={{ color: p.inkSoft, fontSize: 12 }} dir="ltr">{pr.sku}</td>
                   <td className="px-5 py-3" style={{ color: p.inkSoft }}>{cat?.name || "—"}</td>
@@ -4083,7 +4291,7 @@ function QuizBuilderTab({ quizSettings, setQuizSettings, quizQuestions, setQuizQ
 }
 
 
-function ContentTab({ hero, setHero, banner, setBanner, faqs, setFaqs, welcomeModal, setWelcomeModal, ingredientLibrary, setIngredientLibrary }) {
+function ContentTab({ hero, setHero, banner, setBanner, faqs, setFaqs, welcomeModal, setWelcomeModal, ingredientLibrary, setIngredientLibrary, glowSlider, setGlowSlider, about, setAbout }) {
   const p = ADMIN_PALETTE;
   const [saved, setSaved] = useState(false);
   const [resetNotice, setResetNotice] = useState(false);
@@ -4162,6 +4370,32 @@ function ContentTab({ hero, setHero, banner, setBanner, faqs, setFaqs, welcomeMo
           <div><FieldLabel palette={p}>لینک مقصد</FieldLabel><TextInput palette={p} value={banner.link} onChange={(e) => setBanner({ ...banner, link: e.target.value })} dir="ltr" /></div>
           <div><FieldLabel palette={p}>تصویر بنر</FieldLabel><TextInput palette={p} value={banner.image} onChange={(e) => setBanner({ ...banner, image: e.target.value })} placeholder="آدرس تصویر" /></div>
         </div>
+      </div>
+
+      <div className="rounded-3xl p-6" style={{ background: p.white, border: `1px solid ${p.beige}` }}>
+        <div className="flex items-center gap-2 mb-2"><Layers size={17} style={{ color: p.sageDeep }} /><p style={{ fontFamily: "'Noto Serif Arabic', serif", fontSize: 17, color: p.ink }}>اسلایدر پیش/پس از استفاده</p></div>
+        <p style={{ fontSize: 12, color: p.inkSoft }} className="mb-3">با آپلود دو عکس واقعی، این اسلایدر عکس‌های خودتان را با قابلیت کشیدن نمایش می‌دهد؛ تا زمانی‌که خالی باشد، پیش‌نمایش گرادیانی پیش‌فرض دیده می‌شود.</p>
+        <div className="grid sm:grid-cols-2 gap-4">
+          <div>
+            <FieldLabel palette={p}>عکس «پیش از استفاده»</FieldLabel>
+            <ImageUploadField value={glowSlider.beforeImage} onChange={(url) => setGlowSlider({ ...glowSlider, beforeImage: url })} placeholder="آدرس تصویر یا آپلود مستقیم" />
+            <div className="mt-2"><TextInput palette={p} value={glowSlider.beforeLabel} onChange={(e) => setGlowSlider({ ...glowSlider, beforeLabel: e.target.value })} placeholder="برچسب (پیش‌فرض: پیش از استفاده)" /></div>
+          </div>
+          <div>
+            <FieldLabel palette={p}>عکس «پس از استفاده»</FieldLabel>
+            <ImageUploadField value={glowSlider.afterImage} onChange={(url) => setGlowSlider({ ...glowSlider, afterImage: url })} placeholder="آدرس تصویر یا آپلود مستقیم" />
+            <div className="mt-2"><TextInput palette={p} value={glowSlider.afterLabel} onChange={(e) => setGlowSlider({ ...glowSlider, afterLabel: e.target.value })} placeholder="برچسب (پیش‌فرض: پس از ۲ هفته)" /></div>
+          </div>
+        </div>
+      </div>
+
+      <div className="rounded-3xl p-6" style={{ background: p.white, border: `1px solid ${p.beige}` }}>
+        <div className="flex items-center gap-2 mb-2"><Sparkles size={17} style={{ color: p.sageDeep }} /><p style={{ fontFamily: "'Noto Serif Arabic', serif", fontSize: 17, color: p.ink }}>تصویر بخش «فلسفه ما»</p></div>
+        <p style={{ fontSize: 12, color: p.inkSoft }} className="mb-3">تصویر کنار متن «فلسفه ما» را جایگزین کنید یا کاملاً پنهانش کنید. تا زمانی‌که تصویری آپلود نشود، آیکون پیش‌فرض نمایش داده می‌شود.</p>
+        <Toggle palette={p} label="پنهان کردن تصویر (فقط متن نمایش داده شود)" on={about.hideImage} onChange={(v) => setAbout({ ...about, hideImage: v })} />
+        {!about.hideImage && (
+          <div className="mt-3"><ImageUploadField value={about.image} onChange={(url) => setAbout({ ...about, image: url })} placeholder="آدرس تصویر یا آپلود مستقیم" /></div>
+        )}
       </div>
 
       <div className="rounded-3xl p-6" style={{ background: p.white, border: `1px solid ${p.beige}` }}>
@@ -4298,8 +4532,14 @@ function BrandingSubTab({ theme, setTheme }) {
   );
 }
 
-function LayoutSubTab({ layout, setLayout, homeSections, setHomeSections }) {
+const TEXT_EDITABLE_SECTION_KEYS = new Set(["bestsellers", "categories", "concerns", "routine", "bundles", "glowSlider", "ingredients", "shop", "about", "reviews", "journal", "contact"]);
+
+function LayoutSubTab({ layout, setLayout, homeSections, setHomeSections, sectionCopy, setSectionCopy }) {
   const p = ADMIN_PALETTE;
+  const [editingKey, setEditingKey] = useState(null);
+  function updateCopy(key, field, value) {
+    setSectionCopy((prev) => ({ ...(prev || {}), [key]: { ...((prev && prev[key]) || {}), [field]: value } }));
+  }
   function moveSection(i, dir) {
     setHomeSections((prev) => { const next = [...prev]; const j = i + dir; if (j < 0 || j >= next.length) return prev; [next[i], next[j]] = [next[j], next[i]]; return next; });
   }
@@ -4338,15 +4578,38 @@ function LayoutSubTab({ layout, setLayout, homeSections, setHomeSections }) {
         <p style={{ fontFamily: "'Noto Serif Arabic', serif", fontSize: 17, color: p.ink }} className="mb-1">ترتیب و نمایش بخش‌های صفحه اصلی</p>
         <p style={{ fontSize: 12, color: p.inkSoft }} className="mb-4">با دکمه‌های بالا/پایین ترتیب بخش‌ها را تغییر دهید؛ با آیکون چشم، نمایش هر بخش را روشن یا خاموش کنید.</p>
         <div className="flex flex-col gap-2">
-          {homeSections.map((s, i) => (
-            <div key={s.key} className="flex items-center gap-3 rounded-2xl px-4 py-3" style={{ background: p.creamDeep, opacity: s.visible ? 1 : 0.5 }}>
-              <GripVertical size={15} style={{ color: p.inkSoft }} />
-              <span className="flex-1 text-sm" style={{ color: p.ink }}>{s.label}</span>
-              <button onClick={() => moveSection(i, -1)} disabled={i === 0} aria-label="جابه‌جایی به بالا" style={{ opacity: i === 0 ? 0.3 : 1 }}><ChevronUp size={16} color={p.ink} /></button>
-              <button onClick={() => moveSection(i, 1)} disabled={i === homeSections.length - 1} aria-label="جابه‌جایی به پایین" style={{ opacity: i === homeSections.length - 1 ? 0.3 : 1 }}><ChevronDown size={16} color={p.ink} /></button>
-              <button onClick={() => toggleSection(i)} aria-label={s.visible ? "پنهان کردن بخش" : "نمایش بخش"}><Eye size={16} color={s.visible ? p.sageDeep : p.inkSoft} /></button>
+          {homeSections.map((s, i) => {
+            const editable = TEXT_EDITABLE_SECTION_KEYS.has(s.key);
+            const copy = (sectionCopy && sectionCopy[s.key]) || {};
+            return (
+            <div key={s.key} className="rounded-2xl overflow-hidden" style={{ background: p.creamDeep, opacity: s.visible ? 1 : 0.5 }}>
+              <div className="flex items-center gap-3 px-4 py-3">
+                <GripVertical size={15} style={{ color: p.inkSoft }} />
+                <span className="flex-1 text-sm" style={{ color: p.ink }}>{s.label}</span>
+                {editable && (
+                  <button onClick={() => setEditingKey(editingKey === s.key ? null : s.key)} aria-label="ویرایش متن بخش" style={{ opacity: editingKey === s.key ? 1 : 0.7 }}>
+                    <Pencil size={15} color={editingKey === s.key ? p.sageDeep : p.inkSoft} />
+                  </button>
+                )}
+                <button onClick={() => moveSection(i, -1)} disabled={i === 0} aria-label="جابه‌جایی به بالا" style={{ opacity: i === 0 ? 0.3 : 1 }}><ChevronUp size={16} color={p.ink} /></button>
+                <button onClick={() => moveSection(i, 1)} disabled={i === homeSections.length - 1} aria-label="جابه‌جایی به پایین" style={{ opacity: i === homeSections.length - 1 ? 0.3 : 1 }}><ChevronDown size={16} color={p.ink} /></button>
+                <button onClick={() => toggleSection(i)} aria-label={s.visible ? "پنهان کردن بخش" : "نمایش بخش"}><Eye size={16} color={s.visible ? p.sageDeep : p.inkSoft} /></button>
+              </div>
+              {editable && editingKey === s.key && (
+                <div className="px-4 pb-4 grid sm:grid-cols-2 gap-3">
+                  <div>
+                    <FieldLabel palette={p}>متن کوچک (kicker)</FieldLabel>
+                    <TextInput palette={p} value={copy.kicker || ""} onChange={(e) => updateCopy(s.key, "kicker", e.target.value)} placeholder="خالی = پیش‌فرض" className="!bg-white" />
+                  </div>
+                  <div>
+                    <FieldLabel palette={p}>عنوان اصلی</FieldLabel>
+                    <TextInput palette={p} value={copy.heading || ""} onChange={(e) => updateCopy(s.key, "heading", e.target.value)} placeholder="خالی = پیش‌فرض" className="!bg-white" />
+                  </div>
+                </div>
+              )}
             </div>
-          ))}
+            );
+          })}
         </div>
       </div>
     </div>
@@ -4465,7 +4728,7 @@ function FooterSubTab({ footer, setFooter }) {
   );
 }
 
-function CustomizerTab({ theme, setTheme, layout, setLayout, homeSections, setHomeSections, header, setHeader, announcement, setAnnouncement, footer, setFooter }) {
+function CustomizerTab({ theme, setTheme, layout, setLayout, homeSections, setHomeSections, header, setHeader, announcement, setAnnouncement, footer, setFooter, sectionCopy, setSectionCopy }) {
   const p = ADMIN_PALETTE;
   const [sub, setSub] = useState("branding");
   const subTabs = [
@@ -4487,7 +4750,7 @@ function CustomizerTab({ theme, setTheme, layout, setLayout, homeSections, setHo
         })}
       </div>
       {sub === "branding" && <BrandingSubTab theme={theme} setTheme={setTheme} />}
-      {sub === "layout" && <LayoutSubTab layout={layout} setLayout={setLayout} homeSections={homeSections} setHomeSections={setHomeSections} />}
+      {sub === "layout" && <LayoutSubTab layout={layout} setLayout={setLayout} homeSections={homeSections} setHomeSections={setHomeSections} sectionCopy={sectionCopy} setSectionCopy={setSectionCopy} />}
       {sub === "header" && <HeaderSubTab header={header} setHeader={setHeader} announcement={announcement} setAnnouncement={setAnnouncement} />}
       {sub === "footer" && <FooterSubTab footer={footer} setFooter={setFooter} />}
     </div>
@@ -4933,7 +5196,7 @@ function AdminDashboard({
   footer, setFooter, banner, setBanner, hero, setHero, faqs, setFaqs, welcomeModal, setWelcomeModal, authSettings, setAuthSettings,
   freeShipThreshold, setFreeShipThreshold, ingredientLibrary, setIngredientLibrary, quizSettings, setQuizSettings,
   quizQuestions, setQuizQuestions, quizResults, setQuizResults, rewardsSettings, setRewardsSettings,
-  customPages, setCustomPages, bundles, setBundles, onExit, onLogout,
+  customPages, setCustomPages, bundles, setBundles, glowSlider, setGlowSlider, about, setAbout, sectionCopy, setSectionCopy, onExit, onLogout,
 }) {
   const p = ADMIN_PALETTE;
   const [tab, setTab] = useState("overview");
@@ -4990,8 +5253,8 @@ function AdminDashboard({
       title: pr.name, sku: pr.sku || "", tag: pr.tag || "جدید", shortDescription: pr.shortDescription || "", description: pr.description || "",
       price: String(pr.price), salePrice: pr.salePrice != null ? String(pr.salePrice) : "", cost: pr.cost != null ? String(pr.cost) : "",
       stock: String(pr.qty), threshold: String(pr.threshold || 10), category: pr.category, subCategory: pr.subCategory || "",
-      skinTags: pr.skinTags || [], concerns: pr.concerns || [], volume: pr.volume || "", ingredients: pr.ingredients || "", mainImage: pr.mainImage || "", hoverImage: pr.hoverImage || "",
-      extraImage: pr.extraImage || "", metaTitle: pr.metaTitle || "", metaDescription: pr.metaDescription || "", slug: pr.slug || "",
+      skinTags: pr.skinTags || [], concerns: pr.concerns || [], volume: pr.volume || "", ingredients: pr.ingredients || "", images: getProductImages(pr),
+      metaTitle: pr.metaTitle || "", metaDescription: pr.metaDescription || "", slug: pr.slug || "",
     });
     setModalOpen(true);
   }
@@ -5006,7 +5269,7 @@ function AdminDashboard({
       name: draft.title, sku: draft.sku, tag: draft.tag, shortDescription: draft.shortDescription, description: draft.description,
       price: Number(draft.price) || 0, salePrice: draft.salePrice ? Number(draft.salePrice) : null, cost: Number(draft.cost) || 0,
       qty, threshold, stockStatus, category: draft.category, subCategory: draft.subCategory, skinTags: draft.skinTags, concerns: draft.concerns, volume: draft.volume,
-      ingredients: draft.ingredients, mainImage: draft.mainImage, hoverImage: draft.hoverImage, extraImage: draft.extraImage,
+      ingredients: draft.ingredients, images: draft.images || [], mainImage: "", hoverImage: "", extraImage: "",
       metaTitle: draft.metaTitle || `${draft.title} | ${BRAND_NAME}`, metaDescription: autoMetaDescription, slug,
       skin: draft.skinTags[0] ? `مناسب پوست ${draft.skinTags.join("، ")}` : "",
     };
@@ -5266,9 +5529,9 @@ function AdminDashboard({
           {tab === "customers" && <CustomersTab orders={orders} currencySettings={currencySettings} />}
           {tab === "reviews" && <ReviewsTab reviews={reviews} onAdd={openAddReview} onApprove={(id) => setReviewStatus(id, "تأیید شده")} onReject={(id) => setReviewStatus(id, "رد شده")} onDelete={removeReview} onReply={setReplyingReview} />}
           {tab === "promotions" && <PromotionsTab discounts={discounts} onAdd={() => setCouponModalOpen(true)} onDelete={deleteCoupon} onToggleStatus={toggleCouponStatus} currencySettings={currencySettings} />}
-          {tab === "content" && <ContentTab hero={hero} setHero={setHero} banner={banner} setBanner={setBanner} faqs={faqs} setFaqs={setFaqs} welcomeModal={welcomeModal} setWelcomeModal={setWelcomeModal} ingredientLibrary={ingredientLibrary} setIngredientLibrary={setIngredientLibrary} />}
+          {tab === "content" && <ContentTab hero={hero} setHero={setHero} banner={banner} setBanner={setBanner} faqs={faqs} setFaqs={setFaqs} welcomeModal={welcomeModal} setWelcomeModal={setWelcomeModal} ingredientLibrary={ingredientLibrary} setIngredientLibrary={setIngredientLibrary} glowSlider={glowSlider} setGlowSlider={setGlowSlider} about={about} setAbout={setAbout} />}
           {tab === "quiz" && <QuizBuilderTab quizSettings={quizSettings} setQuizSettings={setQuizSettings} quizQuestions={quizQuestions} setQuizQuestions={setQuizQuestions} quizResults={quizResults} setQuizResults={setQuizResults} products={products} />}
-          {tab === "customizer" && <CustomizerTab theme={theme} setTheme={setTheme} layout={layout} setLayout={setLayout} homeSections={homeSections} setHomeSections={setHomeSections} header={header} setHeader={setHeader} announcement={announcement} setAnnouncement={setAnnouncement} footer={footer} setFooter={setFooter} />}
+          {tab === "customizer" && <CustomizerTab theme={theme} setTheme={setTheme} layout={layout} setLayout={setLayout} homeSections={homeSections} setHomeSections={setHomeSections} header={header} setHeader={setHeader} announcement={announcement} setAnnouncement={setAnnouncement} footer={footer} setFooter={setFooter} sectionCopy={sectionCopy} setSectionCopy={setSectionCopy} />}
           {tab === "typography" && <TypographyTab theme={theme} setTheme={setTheme} />}
           {tab === "settings" && (
             <SettingsTab products={products} setProducts={setProducts} currencySettings={currencySettings} setCurrencySettings={setCurrencySettings}
@@ -5453,6 +5716,9 @@ function AppShell({ remoteContent }) {
   const [announcement, setAnnouncement] = useSyncedState("announcement", remoteContent.announcement ?? DEFAULT_ANNOUNCEMENT);
   const [footer, setFooter] = useSyncedState("footer", remoteContent.footer ?? DEFAULT_FOOTER);
   const [banner, setBanner] = useSyncedState("banner", remoteContent.banner ?? DEFAULT_BANNER);
+  const [glowSlider, setGlowSlider] = useSyncedState("glowSlider", remoteContent.glowSlider ?? DEFAULT_GLOW_SLIDER);
+  const [about, setAbout] = useSyncedState("about", remoteContent.about ?? DEFAULT_ABOUT);
+  const [sectionCopy, setSectionCopy] = useSyncedState("sectionCopy", remoteContent.sectionCopy ?? DEFAULT_SECTION_COPY);
   const [hero, setHeroState] = useSyncedState("hero", remoteContent.hero ?? HERO_CMS_DEFAULT);
   const [faqs, setFaqs] = useSyncedState("faqs", Array.isArray(remoteContent.faqs) ? remoteContent.faqs : FAQS_DEFAULT);
   const [welcomeModal, setWelcomeModal] = useSyncedState("welcomeModal", remoteContent.welcomeModal ?? DEFAULT_WELCOME_MODAL);
@@ -5524,7 +5790,7 @@ function AppShell({ remoteContent }) {
   const storefrontProps = {
     products, categories, reviews, currencySettings, theme, layout, header, announcement, footer, banner,
     homeSections, faqs, welcomeModal, cart, setCart, user, freeShipThreshold, ingredientLibrary,
-    quizSettings, quizQuestions, quizResults, rewardsSettings, customPages, bundles,
+    quizSettings, quizQuestions, quizResults, rewardsSettings, customPages, bundles, glowSlider, about, sectionCopy,
     onOpenAdmin: goAdmin, onGoAuth: goAuth, onGoCheckout: goCheckout,
   };
 
@@ -5559,6 +5825,7 @@ function AppShell({ remoteContent }) {
             quizSettings={quizSettings} setQuizSettings={setQuizSettings} quizQuestions={quizQuestions} setQuizQuestions={setQuizQuestions}
             quizResults={quizResults} setQuizResults={setQuizResults} rewardsSettings={rewardsSettings} setRewardsSettings={setRewardsSettings}
             customPages={customPages} setCustomPages={setCustomPages} bundles={bundles} setBundles={setBundles}
+            glowSlider={glowSlider} setGlowSlider={setGlowSlider} about={about} setAbout={setAbout} sectionCopy={sectionCopy} setSectionCopy={setSectionCopy}
             onExit={goStore} onLogout={handleAdminLogout}
           />
         )}
