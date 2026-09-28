@@ -112,7 +112,7 @@ const DEFAULT_FOOTER = {
   col4Title: "تماس با ما", contactEmail: "hello@viina.co", contactPhone: "+98 21 9100 0000", contactAddress: "تهران، ایران",
   social: { instagram: "", tiktok: "", telegram: "", whatsapp: "", youtube: "", pinterest: "" },
   socialEnabled: { instagram: true, tiktok: true, telegram: false, whatsapp: false, youtube: false, pinterest: true },
-  copyright: "© 2026 ویینا اسکین‌کر — تمامی حقوق محفوظ است.",
+  copyright: "© 2026 وینا اسکین‌کر — تمامی حقوق محفوظ است.",
   showPaymentBadges: true,
 };
 
@@ -145,8 +145,8 @@ const DEFAULT_AUTH_SETTINGS = {
   backgroundStyle: "aura", // "aura" | "minimal"
   loginHeading: "خوش برگشتید",
   loginSubtitle: "برای ادامه خرید وارد حساب کاربری خود شوید.",
-  signupHeading: "به ویینا بپیوندید",
-  signupSubtitle: "چند لحظه‌ای تا شروع تجربه ویینا فاصله دارید.",
+  signupHeading: "به وینا بپیوندید",
+  signupSubtitle: "چند لحظه‌ای تا شروع تجربه وینا فاصله دارید.",
 };
 
 /* Admin identity now lives entirely in Supabase Auth (see
@@ -182,7 +182,7 @@ const DEFAULT_QUIZ_RESULTS = [];
 
 const DEFAULT_REWARDS_SETTINGS = {
   enabled: true,
-  clubName: "باشگاه درخشش ویینا",
+  clubName: "باشگاه درخشش وینا",
   earnRatePct: 5,
 };
 
@@ -200,7 +200,7 @@ const HOME_SECTIONS_DEFAULT = [
   { key: "about", label: "درباره ما", visible: true },
   { key: "reviews", label: "نظرات مشتریان", visible: true },
   { key: "trust", label: "ضمانت اصالت و اعتماد", visible: true },
-  { key: "journal", label: "ژورنال ویینا", visible: true },
+  { key: "journal", label: "ژورنال وینا", visible: true },
   { key: "contact", label: "تماس و سوالات متداول", visible: true },
 ];
 
@@ -260,7 +260,7 @@ const SHIPPING_REGIONS_DEFAULT = [{ region: "داخل کشور", rate: 150000 },
 const NOTIFICATION_TEMPLATES_DEFAULT = [
   { name: "تأیید سفارش", subject: "سفارش شما ثبت شد", enabled: true },
   { name: "به‌روزرسانی ارسال", subject: "سفارش شما ارسال شد", enabled: true },
-  { name: "ایمیل خوش‌آمدگویی", subject: "به ویینا خوش آمدید", enabled: false },
+  { name: "ایمیل خوش‌آمدگویی", subject: "به وینا خوش آمدید", enabled: false },
 ];
 const DEFAULT_AUTH_LINKS = { signIn: "#", signUp: "#", forgotPassword: "#", accountDashboard: "#" };
 
@@ -268,12 +268,12 @@ const FAQS_DEFAULT = [
   { q: "ارسال سفارش چقدر طول می‌کشد؟", a: "سفارش‌ها ظرف ۱ تا ۲ روز کاری ارسال می‌شوند. تحویل استاندارد داخل کشور ۳ تا ۵ روز کاری و برای آدرس‌های بین‌المللی ۷ تا ۱۲ روز کاری طول می‌کشد." },
   { q: "قوانین بازگشت کالا چگونه است؟", a: "بازگشت کالاهای باز نشده تا ۳۰ روز پس از تحویل امکان‌پذیر است. اگر محصولی با پوست شما سازگار نبود، با ما تماس بگیرید تا به‌صورت موردی بررسی کنیم." },
   { q: "چطور بفهمم کدام محصولات برای نوع پوستم مناسب است؟", a: "در صفحه هر محصول، نشان نوع پوست و نگرانی‌های اصلی ذکر شده است. اگر مطمئن نیستید، تیم پشتیبانی ما می‌تواند با چند سؤال کوتاه یک روتین مناسب پیشنهاد دهد." },
-  { q: "آیا محصولات ویینا فاقد آزمایش حیوانی هستند؟", a: "بله. تمام محصولات گلچین‌شده در ویینا فاقد آزمایش حیوانی هستند و بیشتر آن‌ها گیاهی (وگان) نیز هستند. فهرست کامل ترکیبات روی صفحه هر محصول درج شده است." },
+  { q: "آیا محصولات وینا فاقد آزمایش حیوانی هستند؟", a: "بله. تمام محصولات گلچین‌شده در وینا فاقد آزمایش حیوانی هستند و بیشتر آن‌ها گیاهی (وگان) نیز هستند. فهرست کامل ترکیبات روی صفحه هر محصول درج شده است." },
   { q: "آیا می‌توانم سفارشم را پیگیری کنم؟", a: "به‌محض ارسال سفارش، لینک رهگیری از طریق ایمیل برای شما ارسال می‌شود و می‌توانید وضعیت را هر زمان از حساب کاربری خود بررسی کنید." },
 ];
 const HERO_CMS_DEFAULT = {
   headline: "پوست خود را با ظرافتی ناب پرورش دهید",
-  subtitle: "گیاهان ارگانیک، پشتیبانی‌شده با تحقیقات پوستی. هر قلم از کالکشن ویینا برای بازگرداندن تعادل طبیعی پوست شما دستچین شده.",
+  subtitle: "گیاهان ارگانیک، پشتیبانی‌شده با تحقیقات پوستی. هر قلم از کالکشن وینا برای بازگرداندن تعادل طبیعی پوست شما دستچین شده.",
   ctaText: "مشاهده محصولات", ctaLink: "#shop", bgImage: "", imageWidth: 420, imageHeight: 420,
 };
 
@@ -426,22 +426,83 @@ function getProductImages(pr) {
   return [pr.mainImage, pr.hoverImage, pr.extraImage].filter(Boolean);
 }
 
+/* Reconciles a stale local snapshot with whatever is actually on the
+   server right now, instead of blindly overwriting it — this is what
+   stops two admins editing at the same time from wiping out each
+   other's work. `base` is the value this edit started from (the last
+   snapshot known to be saved), `local` is the current in-memory value
+   with this admin's edits applied, and `remote` is a fresh read of
+   the server's row (which may already contain another admin's newer
+   changes). For arrays of objects keyed by `id` (products,
+   categories, brands, reviews, etc.) this admin's own adds/edits/
+   deletes — the difference between `base` and `local` — are replayed
+   on top of the fresh `remote` array. Plain objects are merged key by
+   key the same way. Anything without a stable identity to key by
+   (e.g. a bare array of strings) falls back to trusting the local
+   value, which only loses a concurrent edit in the rare case both
+   admins touched that exact unkeyed list in the same 600ms window —
+   far narrower than the previous "last save wins for the entire
+   section" behavior. */
+function mergeSyncedValue(base, local, remote) {
+  if (remote === undefined || remote === null) return local;
+  if (Array.isArray(base) && Array.isArray(local) && Array.isArray(remote)) {
+    const hasStableIds = local.every((x) => x && typeof x === "object" && "id" in x) && remote.every((x) => x && typeof x === "object" && "id" in x);
+    if (!hasStableIds) return local;
+    const baseIds = new Set(base.map((x) => x.id));
+    const localIds = new Set(local.map((x) => x.id));
+    const localById = new Map(local.map((x) => [x.id, x]));
+    const baseById = new Map(base.map((x) => [x.id, x]));
+    const deletedIds = new Set([...baseIds].filter((id) => !localIds.has(id)));
+    const merged = remote.filter((x) => !deletedIds.has(x.id)).map((x) => (localById.has(x.id) ? mergeSyncedValue(baseById.get(x.id) ?? x, localById.get(x.id), x) : x));
+    const mergedIds = new Set(merged.map((x) => x.id));
+    local.forEach((x) => { if (!baseIds.has(x.id) && !mergedIds.has(x.id)) merged.push(x); });
+    return merged;
+  }
+  if (base && local && remote && typeof base === "object" && typeof local === "object" && typeof remote === "object" && !Array.isArray(local)) {
+    const merged = { ...remote };
+    Object.keys(local).forEach((key) => {
+      if (JSON.stringify(base[key]) !== JSON.stringify(local[key])) merged[key] = mergeSyncedValue(base[key], local[key], remote[key]);
+    });
+    return merged;
+  }
+  return local;
+}
 function useSyncedState(key, initialValue) {
   const [value, setValue] = useState(initialValue);
   const skipNextSave = useRef(true);
+  /* Last value known to actually be saved on the server — the
+     baseline mergeSyncedValue diffs against. Reset to the freshly
+     merged result after every successful save. */
+  const baselineRef = useRef(initialValue);
   useEffect(() => {
-    if (skipNextSave.current) { skipNextSave.current = false; return; }
+    if (skipNextSave.current) { skipNextSave.current = false; baselineRef.current = value; return; }
     publishSaveStatus({ state: "saving" });
+    const localSnapshot = value;
+    const baseSnapshot = baselineRef.current;
     const t = setTimeout(() => {
-      supabase.from("site_content")
-        .upsert({ id: key, data: value, updated_at: new Date().toISOString() }, { onConflict: "id" })
-        .then(({ error }) => {
-          if (error) {
-            console.error(`VIINA: could not save "${key}" to Supabase.`, error);
-            publishSaveStatus({ state: "error", key, message: error.message });
-          } else {
-            publishSaveStatus({ state: "saved", key });
-          }
+      /* Read-merge-write: fetch what's actually on the server right
+         before writing, so a colleague's concurrent save (which may
+         have landed in the last 600ms) gets merged in instead of
+         clobbered. */
+      supabase.from("site_content").select("data").eq("id", key).maybeSingle()
+        .then(({ data: row, error: readError }) => {
+          const remote = readError ? undefined : row?.data;
+          const merged = mergeSyncedValue(baseSnapshot, localSnapshot, remote);
+          return supabase.from("site_content")
+            .upsert({ id: key, data: merged, updated_at: new Date().toISOString() }, { onConflict: "id" })
+            .then(({ error }) => {
+              if (error) {
+                console.error(`VIINA: could not save "${key}" to Supabase.`, error);
+                publishSaveStatus({ state: "error", key, message: error.message });
+                return;
+              }
+              baselineRef.current = merged;
+              /* If merging pulled in a colleague's concurrent change,
+                 reflect it locally too so this admin's screen matches
+                 what's actually saved instead of silently diverging. */
+              if (JSON.stringify(merged) !== JSON.stringify(localSnapshot)) { skipNextSave.current = true; setValue(merged); }
+              publishSaveStatus({ state: "saved", key });
+            });
         });
     }, 600); /* debounced so fast typing doesn't fire a write per keystroke */
     return () => clearTimeout(t);
@@ -652,6 +713,25 @@ function Bottle({ tint, ink, white, label }) {
       <div className="rounded-sm" style={{ width: 14, height: 10, background: ink, opacity: 0.75 }} />
       <div className="rounded-sm" style={{ width: 20, height: 6, background: ink, opacity: 0.55, marginTop: 1 }} />
       <div className="rounded-2xl" style={{ width: 54, height: 78, background: `linear-gradient(155deg, ${white}CC, ${tint})`, border: `1px solid ${white}66` }} />
+    </div>
+  );
+}
+/* Small fixed-size product thumbnail used everywhere a compact row
+   references a product (cart drawer, checkout summary, quick-view
+   recommendations, routine/quiz builders, compare drawer, admin
+   widgets): shows the product's real first photo, cropped to a neat
+   square, instead of the generic illustrated Bottle placeholder —
+   the placeholder is now only used as a genuine fallback for
+   products that truly have no photo uploaded yet. */
+function ProductMiniThumb({ product, palette, size = 44, rounded = "rounded-xl" }) {
+  const img = getProductImages(product)[0];
+  return (
+    <div className={`${rounded} flex items-center justify-center overflow-hidden shrink-0`} style={{ width: size, height: size, background: `${product.tint}55` }}>
+      {img ? (
+        <img src={img} alt={product.name || ""} className="w-full h-full object-cover" loading="lazy" />
+      ) : (
+        <div style={{ transform: `scale(${Math.min(1, size / 98)})` }}><Bottle tint={product.tint} ink={palette.ink} white={palette.white} label={product.name} /></div>
+      )}
     </div>
   );
 }
@@ -895,7 +975,80 @@ function WelcomeModal({ config, theme, onDismiss }) {
    is /product/:id. Guards every list it touches against
    undefined/null (a product with no reviews yet, no ingredients
    text, etc.) so a missing field never crashes the page. */
-function ProductDetailContent({ productId, products, categories, reviews, palette, fontDisplay, fmt, onAddToCart, navigate }) {
+/* Hashtags are compared in a normalized form so "#Vitamin_C",
+   "vitamin c" and "ویتامین‌ث" typed slightly differently by the admin
+   still resolve to exactly the same tag page. */
+function normalizeHashtag(t) {
+  return String(t || "").replace(/^#+/, "").replace(/ي/g, "ی").replace(/ك/g, "ک").replace(/[\u200c\s_\-]+/g, "").toLowerCase().trim();
+}
+function parseHashtags(text) {
+  const seen = new Set();
+  return String(text || "").split(/[,،\n]+/).map((t) => t.trim().replace(/^#+/, "").trim()).filter((t) => {
+    const k = normalizeHashtag(t);
+    if (!k || seen.has(k)) return false;
+    seen.add(k);
+    return true;
+  });
+}
+/* First letter of a brand name, normalized so Arabic/Persian variants
+   land under one letter and Latin names group under uppercase A–Z. */
+const BRAND_ALPHABET = ["آ","ا","ب","پ","ت","ث","ج","چ","ح","خ","د","ذ","ر","ز","ژ","س","ش","ص","ض","ط","ظ","ع","غ","ف","ق","ک","گ","ل","م","ن","و","ه","ی"];
+function brandInitial(name) {
+  const ch = String(name || "").trim().charAt(0).replace("ي", "ی").replace("ك", "ک").replace(/[أإ]/, "ا");
+  return /[a-z]/i.test(ch) ? ch.toUpperCase() : ch;
+}
+/* Public "all brands" page: logo + name cards with an A–Z / alphabet
+   strip that filters the grid by the brand's first letter. */
+function BrandsIndexContent({ brands, products, palette, fontDisplay }) {
+  const [letter, setLetter] = useState(null);
+  const sorted = useMemo(() => [...(brands || [])].sort((a, b) => String(a.name).localeCompare(String(b.name), "fa")), [brands]);
+  const present = useMemo(() => new Set(sorted.map((b) => brandInitial(b.name))), [sorted]);
+  const latin = useMemo(() => Array.from(present).filter((l) => /^[A-Z]$/.test(l)).sort(), [present]);
+  const letters = [...BRAND_ALPHABET, ...latin];
+  const shown = letter ? sorted.filter((b) => brandInitial(b.name) === letter) : sorted;
+  return (
+    <section className="max-w-6xl mx-auto px-5 md:px-8 py-12 md:py-16 min-h-[60vh]">
+      <p style={{ color: palette.sageDeep, fontSize: 13, fontWeight: 600 }} className="mb-3">برندها</p>
+      <h1 style={{ ...fontDisplay, fontWeight: 500, color: palette.ink }} className="text-3xl md:text-4xl mb-3">همه‌ی برندهای وینا</h1>
+      <p style={{ color: palette.inkSoft, fontSize: 14 }} className="mb-6">برای دیدن محصولات هر برند، روی نام برند کلیک کنید.</p>
+      {sorted.length === 0 ? (
+        <EmptyState icon={Package} title="هنوز برندی اضافه نشده است" subtitle="برندها از پنل مدیریت اضافه می‌شوند." palette={palette} />
+      ) : (
+        <>
+          <div className="flex flex-wrap gap-1.5 rounded-2xl p-3 mb-8" style={{ background: palette.creamDeep }}>
+            <button onClick={() => setLetter(null)} className="rounded-lg px-3 h-9 text-sm font-medium" style={{ background: !letter ? palette.sageDeep : palette.white, color: !letter ? palette.white : palette.ink }}>همه</button>
+            {letters.map((l) => {
+              const has = present.has(l);
+              return (
+                <button key={l} disabled={!has} onClick={() => setLetter(letter === l ? null : l)} className="rounded-lg w-9 h-9 text-sm font-medium disabled:opacity-30"
+                  style={{ background: letter === l ? palette.sageDeep : palette.white, color: letter === l ? palette.white : palette.ink }}>{l}</button>
+              );
+            })}
+          </div>
+          {shown.length === 0 ? (
+            <p style={{ fontSize: 13.5, color: palette.inkSoft }}>برندی با این حرف وجود ندارد.</p>
+          ) : (
+            <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
+              {shown.map((b) => {
+                const count = (products || []).filter((p) => p.brand === b.id).length;
+                return (
+                  <Link key={b.id} to={`/brand/${b.slug || b.id}`} className="group rounded-2xl border p-5 flex flex-col items-center text-center transition-shadow hover:shadow-lg" style={{ background: palette.white, borderColor: palette.beige }}>
+                    <div className="w-20 h-20 rounded-2xl mb-3 flex items-center justify-center overflow-hidden" style={{ background: palette.creamDeep }}>
+                      {b.logo ? <img src={b.logo} alt={b.name} className="w-full h-full object-contain" loading="lazy" /> : <span style={{ ...fontDisplay, fontSize: 26, color: palette.sageDeep }}>{brandInitial(b.name)}</span>}
+                    </div>
+                    <p style={{ fontSize: 14, color: palette.ink, fontWeight: 600 }}>{b.name}</p>
+                    <span className="mt-2 rounded-full px-2.5 py-0.5 text-[11px]" style={{ background: palette.creamDeep, color: palette.inkSoft }}>{count} محصول</span>
+                  </Link>
+                );
+              })}
+            </div>
+          )}
+        </>
+      )}
+    </section>
+  );
+}
+function ProductDetailContent({ productId, products, categories, brands = [], reviews, palette, fontDisplay, fmt, onAddToCart, navigate }) {
   const [tab, setTab] = useState("specs");
   const safeProducts = products || [];
   const product = safeProducts.find((p) => String(p.id) === String(productId));
@@ -911,6 +1064,7 @@ function ProductDetailContent({ productId, products, categories, reviews, palett
   }
 
   const category = (categories || []).find((c) => c.id === product.category);
+  const productBrand = (brands || []).find((b) => b.id === product.brand);
   const productReviews = (reviews || []).filter((r) => String(r.product) === String(product.id) && r.status === "تأیید شده");
   const related = safeProducts.filter((p) => p.id !== product.id && p.category === product.category).slice(0, 4);
   const ingredientList = (product.ingredients || "").split(",").map((s) => s.trim()).filter(Boolean);
@@ -935,6 +1089,19 @@ function ProductDetailContent({ productId, products, categories, reviews, palett
         <div>
           {product.tag && <span className="inline-flex items-center gap-1 rounded-full px-2.5 py-1 text-[10.5px] font-medium mb-3" style={{ background: `${palette.bronze}22`, color: palette.bronze }}><Sparkles size={10} />{product.tag}</span>}
           <h1 style={{ ...fontDisplay, fontWeight: 500, color: palette.ink }} className="text-3xl md:text-4xl mb-3">{product.name}</h1>
+          {productBrand && (
+            <Link to={`/brand/${productBrand.slug || productBrand.id}`} className="inline-flex items-center gap-2 mb-3 text-sm hover:opacity-70" style={{ color: palette.sageDeep }}>
+              {productBrand.logo && <img src={productBrand.logo} alt="" className="w-6 h-6 rounded-full object-contain bg-white" />}
+              برند: <span style={{ fontWeight: 600 }}>{productBrand.name}</span>
+            </Link>
+          )}
+          {(product.hashtags || []).length > 0 && (
+            <div className="flex flex-wrap gap-2 mb-4">
+              {product.hashtags.map((h) => (
+                <Link key={h} to={`/hashtag/${encodeURIComponent(normalizeHashtag(h) ? h.replace(/^#+/, "") : h)}`} className="rounded-full px-3 py-1 text-xs hover:opacity-70" style={{ background: palette.creamDeep, color: palette.sageDeep }}>#{h.replace(/^#+/, "")}</Link>
+              ))}
+            </div>
+          )}
           {product.rating > 0 && (
             <div className="flex items-center gap-2 mb-4">
               <Stars rating={product.rating} color={palette.bronze} />
@@ -1005,15 +1172,22 @@ function ProductDetailContent({ productId, products, categories, reviews, palett
           <p style={{ fontSize: 13.5, color: palette.inkSoft }}>محصول مرتبطی در همین دسته‌بندی یافت نشد.</p>
         ) : (
           <div className="grid grid-cols-2 md:grid-cols-4 gap-5">
-            {related.map((rp) => (
-              <Link key={rp.id} to={`/product/${rp.id}`} className="group block">
-                <div className="rounded-2xl flex items-center justify-center mb-3 transition-transform group-hover:scale-105" style={{ background: palette.creamDeep, height: 120 }}>
-                  <Bottle tint={rp.tint} ink={palette.ink} white={palette.white} label={buildProductAltText(rp, categories)} />
-                </div>
-                <p style={{ fontSize: 13, color: palette.ink }} className="truncate">{rp.name}</p>
-                <p style={{ fontSize: 12, color: palette.inkSoft }}>{fmt(rp.salePrice || rp.price)}</p>
-              </Link>
-            ))}
+            {related.map((rp) => {
+              const rpImg = getProductImages(rp)[0];
+              return (
+                <Link key={rp.id} to={`/product/${rp.id}`} className="group block">
+                  <div className="rounded-2xl overflow-hidden flex items-center justify-center mb-3 transition-transform group-hover:scale-105" style={{ background: palette.creamDeep, height: 120 }}>
+                    {rpImg ? (
+                      <img src={rpImg} alt={buildProductAltText(rp, categories)} className="w-full h-full object-cover" loading="lazy" />
+                    ) : (
+                      <Bottle tint={rp.tint} ink={palette.ink} white={palette.white} label={buildProductAltText(rp, categories)} />
+                    )}
+                  </div>
+                  <p style={{ fontSize: 13, color: palette.ink }} className="truncate">{rp.name}</p>
+                  <p style={{ fontSize: 12, color: palette.inkSoft }}>{fmt(rp.salePrice || rp.price)}</p>
+                </Link>
+              );
+            })}
           </div>
         )
       )}
@@ -1129,7 +1303,7 @@ function AiSkinScannerModal({ palette, headingFont, products, fmt, onAddToCart, 
               <div className="flex flex-col gap-2.5">
                 {suggested.map((p) => (
                   <div key={p.id} className="flex items-center gap-3 rounded-2xl p-2.5" style={{ background: palette.creamDeep }}>
-                    <div className="w-10 h-10 rounded-xl flex items-center justify-center shrink-0" style={{ background: `${p.tint}55` }}><Bottle tint={p.tint} ink={palette.ink} white={palette.white} label={`${p.name} - خرید از ${BRAND_NAME}`} /></div>
+                    <ProductMiniThumb product={p} palette={palette} size={40} />
                     <div className="flex-1 min-w-0"><p style={{ fontSize: 13, color: palette.ink }} className="truncate">{p.name}</p><p style={{ fontSize: 11.5, color: palette.inkSoft }}>{fmt(p.salePrice || p.price)}</p></div>
                     <button onClick={() => onAddToCart(p.id)} className="rounded-full px-3 py-1.5 text-[11px] font-medium shrink-0" style={{ background: palette.sageDeep, color: palette.white }}>افزودن</button>
                   </div>
@@ -1204,7 +1378,7 @@ function AnimatedHeroImage({ src, width = 420, height = 420, palette, rounded = 
    whatever colors/fonts the admin Customizer currently has set.
 ================================================================== */
 
-function Storefront({ products, categories, reviews, currencySettings, theme, layout, header, announcement, footer, banner, homeSections, faqs, welcomeModal, cart, setCart, user, freeShipThreshold, ingredientLibrary, quizSettings, quizQuestions, quizResults, rewardsSettings, onOpenAdmin, onGoAuth, onGoCheckout, customPage, initialCategorySlug, productId, customPages = [], bundles = [], glowSlider = DEFAULT_GLOW_SLIDER, about = DEFAULT_ABOUT, sectionCopy = DEFAULT_SECTION_COPY }) {
+function Storefront({ products, categories, reviews, currencySettings, theme, layout, header, announcement, footer, banner, homeSections, faqs, welcomeModal, cart, setCart, user, freeShipThreshold, ingredientLibrary, quizSettings, quizQuestions, quizResults, rewardsSettings, onOpenAdmin, onGoAuth, onGoCheckout, customPage, initialCategorySlug, productId, brands = [], brandSlug, hashtag, showBrandsIndex, customPages = [], bundles = [], glowSlider = DEFAULT_GLOW_SLIDER, about = DEFAULT_ABOUT, sectionCopy = DEFAULT_SECTION_COPY }) {
   const navigate = useNavigate();
   const palette = theme;
   const fontDisplay = { fontFamily: theme.headingFont };
@@ -1243,6 +1417,20 @@ function Storefront({ products, categories, reviews, currencySettings, theme, la
   const activeCategory = categories.find((c) => c.id === activeCategoryId) || null;
   function clearCategoryFilter() { navigate("/"); setActiveCategoryId(null); }
 
+  /* Subcategory drawer on a category's own page: the list is the
+     admin-defined subcategories of that category plus any subcategory
+     already typed on its products, so it works immediately. */
+  const [activeSub, setActiveSub] = useState(null);
+  const [subDrawerOpen, setSubDrawerOpen] = useState(true);
+  useEffect(() => { setActiveSub(null); }, [initialCategorySlug]);
+  const categorySubs = useMemo(() => {
+    if (!activeCategory) return [];
+    const fromProducts = products.filter((p) => p.category === activeCategory.id).map((p) => (p.subCategory || "").trim()).filter(Boolean);
+    return Array.from(new Set([...(activeCategory.subcategories || []), ...fromProducts]));
+  }, [activeCategory, products]);
+  const activeBrand = brandSlug ? brands.find((b) => b.slug === brandSlug) || null : null;
+  const hashtagKey = hashtag ? normalizeHashtag(hashtag) : "";
+
   /* "Shop by Skin Concern" filter — independent of the category/tag
      filters above, and combinable with them */
   const [activeConcern, setActiveConcern] = useState(null);
@@ -1270,13 +1458,13 @@ function Storefront({ products, categories, reviews, currencySettings, theme, la
   useEffect(() => {
     const origin = typeof window !== "undefined" ? window.location.origin : "";
     const siteUrl = origin || "https://viina.example";
-    const brandDesc = "ویینا؛ عرضه‌کننده تخصصی و گلچین‌شده محصولات مراقبت پوستی لوکس — کالکشن ویژه، دستچین‌شده از بهترین برندهای جهانی، با ضمانت ۱۰۰٪ اصالت کالا.";
+    const brandDesc = "وینا؛ عرضه‌کننده تخصصی و گلچین‌شده محصولات مراقبت پوستی لوکس — کالکشن ویژه، دستچین‌شده از بهترین برندهای جهانی، با ضمانت ۱۰۰٪ اصالت کالا.";
 
     upsertJsonLd("ld-organization", {
       "@context": "https://schema.org",
       "@type": "Store",
       name: BRAND_NAME,
-      alternateName: "ویینا",
+      alternateName: "وینا",
       description: brandDesc,
       url: siteUrl,
       image: header.heroImage || undefined,
@@ -1769,7 +1957,7 @@ function Storefront({ products, categories, reviews, currencySettings, theme, la
                             <button key={opt.id} onClick={() => setRoutineSelection((prev) => ({ ...prev, [s.category.id]: opt.id }))}
                               className="flex items-center gap-3 rounded-2xl p-3 border text-right transition-all duration-300"
                               style={{ background: active ? palette.white : `${palette.white}80`, borderColor: active ? palette.sageDeep : palette.beige, boxShadow: active ? `0 10px 24px -12px ${palette.sageDeep}55` : "none" }}>
-                              <div className="rounded-xl flex items-center justify-center shrink-0" style={{ width: 44, height: 44, background: `${opt.tint}55` }}><div className="scale-[0.45]"><Bottle tint={opt.tint} ink={palette.ink} white={palette.white} /></div></div>
+                              <ProductMiniThumb product={opt} palette={palette} size={44} />
                               <div className="flex-1 min-w-0">
                                 <p className="truncate" style={{ fontSize: 13, color: palette.ink }}>{opt.name}</p>
                                 <p style={{ fontSize: 12, color: palette.inkSoft }}>{fmt(opt.salePrice || opt.price)}</p>
@@ -1828,7 +2016,7 @@ function Storefront({ products, categories, reviews, currencySettings, theme, la
                     <div className="flex items-center gap-3 mb-5 flex-wrap">
                       {b.items.map((p) => (
                         <div key={p.id} className="flex items-center gap-2 rounded-full pl-3 pr-1.5 py-1.5" style={{ background: palette.creamDeep }}>
-                          <div className="w-7 h-7 rounded-full flex items-center justify-center" style={{ background: `${p.tint}55` }}><Bottle tint={p.tint} ink={palette.ink} white={palette.white} label={`${p.name} - خرید از ${BRAND_NAME}`} /></div>
+                          <ProductMiniThumb product={p} palette={palette} size={28} rounded="rounded-full" />
                           <span style={{ fontSize: 11.5, color: palette.ink }}>{p.name}</span>
                         </div>
                       ))}
@@ -1876,7 +2064,7 @@ function Storefront({ products, categories, reviews, currencySettings, theme, la
             <RevealHeading className="mb-10 md:mb-14 max-w-xl">
               <p style={{ color: palette.sageDeep, fontSize: 13, fontWeight: 600 }} className="mb-3">{t.kicker}</p>
               <h2 style={{ ...fontDisplay, fontWeight: 500, color: palette.ink }} className="text-3xl md:text-4xl mb-3">{t.heading}</h2>
-              <p style={{ color: palette.inkSoft, fontSize: 14.5 }}>با ترکیبات طبیعی داخل کالکشن ویینا و فایده هرکدام برای پوست آشنا شوید.</p>
+              <p style={{ color: palette.inkSoft, fontSize: 14.5 }}>با ترکیبات طبیعی داخل کالکشن وینا و فایده هرکدام برای پوست آشنا شوید.</p>
             </RevealHeading>
             <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-5">
               {ingredientLibrary.map((ing, i) => {
@@ -1906,27 +2094,28 @@ function Storefront({ products, categories, reviews, currencySettings, theme, la
         </section>
       );
     },
-    shop: () => (
+    shop: (o = {}) => { const shopList = o.list || filteredProducts; const shopVisible = o.list ? o.list.slice(0, visibleCount) : visibleProducts; return (
       <section id="shop" key="shop" className="relative py-16 md:py-24 overflow-hidden" style={{ background: palette.creamDeep }}>
         <GlowBlob colors={[`${palette.nudeDeep}`, `${palette.nudeDeep}00`]} style={{ width: 460, height: 460, top: "10%", left: "-6%" }} />
         <GlowBlob colors={[`${palette.sageMist}`, `${palette.sageMist}00`]} style={{ width: 380, height: 380, bottom: "-5%", right: "-4%" }} />
         <div className="relative max-w-7xl mx-auto px-5 md:px-8">
           <RevealHeading className="flex flex-col md:flex-row md:items-end md:justify-between gap-6 mb-10">
             <div>
-              <p style={{ color: palette.sageDeep, fontSize: 13, fontWeight: 600 }} className="mb-3">{secText("shop", "محصولات منتخب", "کالکشن ویینا").kicker}</p>
-              <h2 style={{ ...fontDisplay, fontWeight: 500, color: palette.ink }} className="text-3xl md:text-4xl">{activeCategory ? activeCategory.name : activeConcern ? activeConcern : secText("shop", "محصولات منتخب", "کالکشن ویینا").heading}</h2>
-              {activeCategory && (
+              <p style={{ color: palette.sageDeep, fontSize: 13, fontWeight: 600 }} className="mb-3">{o.kicker || secText("shop", "محصولات منتخب", "کالکشن وینا").kicker}</p>
+              <h2 style={{ ...fontDisplay, fontWeight: 500, color: palette.ink }} className="text-3xl md:text-4xl">{o.heading || (activeCategory ? activeCategory.name : activeConcern ? activeConcern : secText("shop", "محصولات منتخب", "کالکشن وینا").heading)}</h2>
+              {o.extraHeader}
+              {!o.list && activeCategory && (
                 <button onClick={clearCategoryFilter} className="mt-3 inline-flex items-center gap-1.5 rounded-full px-3.5 py-1.5 text-xs font-medium border" style={{ borderColor: palette.beige, color: palette.inkSoft }}>
                   <X size={12} /> بازگشت به همه دسته‌بندی‌ها
                 </button>
               )}
-              {activeConcern && (
+              {!o.list && activeConcern && (
                 <button onClick={clearConcernFilter} className="mt-3 inline-flex items-center gap-1.5 rounded-full px-3.5 py-1.5 text-xs font-medium border" style={{ borderColor: palette.beige, color: palette.inkSoft }}>
                   <X size={12} /> حذف فیلتر نیاز پوستی
                 </button>
               )}
             </div>
-            {products.length > 0 && (
+            {!o.list && products.length > 0 && (
               <div className="flex flex-wrap gap-2">
                 {dynamicFilters.map((f) => (
                   <button key={f} onClick={() => setFilter(f)} className="rounded-full px-4 py-2 text-sm transition-colors"
@@ -1940,10 +2129,12 @@ function Storefront({ products, categories, reviews, currencySettings, theme, la
 
           {products.length === 0 ? (
             <EmptyState icon={Package} title="هنوز محصولی اضافه نشده است" subtitle="محصولات فروشگاه پس از افزودن از پنل مدیریت، اینجا نمایش داده می‌شوند." palette={palette} />
+          ) : o.list && o.list.length === 0 ? (
+            <EmptyState icon={Package} title={o.emptyTitle || "محصولی در این بخش یافت نشد"} subtitle={o.emptySubtitle || ""} palette={palette} />
           ) : (
             <>
               <div className={`grid ${gridColsClass} gap-5 md:gap-6`}>
-                {visibleProducts.map((p, i) => {
+                {shopVisible.map((p, i) => {
                   const isLow = p.stockStatus === "موجودی کم";
                   const isOut = p.stockStatus === "ناموجود";
                   return (
@@ -2006,7 +2197,7 @@ function Storefront({ products, categories, reviews, currencySettings, theme, la
                   );
                 })}
               </div>
-              {visibleCount < filteredProducts.length && (
+              {visibleCount < shopList.length && (
                 <div className="flex justify-center mt-10">
                   <button onClick={() => setVisibleCount((v) => v + (Number(layout.itemsPerPage) || 12))} className="rounded-full px-6 py-3 text-sm font-medium border" style={{ borderColor: palette.beige, color: palette.ink }}>
                     نمایش بیشتر
@@ -2017,7 +2208,7 @@ function Storefront({ products, categories, reviews, currencySettings, theme, la
           )}
         </div>
       </section>
-    ),
+    ); },
     about: () => {
       const t = secText("about", "فلسفه ما", "گلچین‌شده با دقت و صبر");
       return (
@@ -2032,7 +2223,7 @@ function Storefront({ products, categories, reviews, currencySettings, theme, la
         <Reveal className={about.hideImage ? "lg:col-span-2" : "order-2 lg:order-1"}>
           <p style={{ color: palette.sageDeep, fontSize: 13, fontWeight: 600 }} className="mb-3">{t.kicker}</p>
           <h2 style={{ ...fontDisplay, fontWeight: 500, color: palette.ink }} className="text-3xl md:text-4xl mb-5">{t.heading}</h2>
-          <p style={{ color: palette.inkSoft, fontSize: 16, lineHeight: 1.95 }} className="mb-5">ویینا از یک دغدغه ساده شروع شد: بازاریابی محصولات پوستی جلوتر از علم آن‌ها حرکت می‌کرد. ویینا فروشگاه تخصصی محصولات مراقبت پوستی است؛ تیم ما در کنار متخصصان پوست، معتبرترین برندهای دنیا را با کمترین و هدفمندترین ترکیبات برای شما گلچین می‌کند.</p>
+          <p style={{ color: palette.inkSoft, fontSize: 16, lineHeight: 1.95 }} className="mb-5">وینا از یک دغدغه ساده شروع شد: بازاریابی محصولات پوستی جلوتر از علم آن‌ها حرکت می‌کرد. وینا فروشگاه تخصصی محصولات مراقبت پوستی است؛ تیم ما در کنار متخصصان پوست، معتبرترین برندهای دنیا را با کمترین و هدفمندترین ترکیبات برای شما گلچین می‌کند.</p>
           <p style={{ color: palette.inkSoft, fontSize: 16, lineHeight: 1.95 }} className="mb-8">موجودی هر محصول در مقیاس محدود تأمین می‌شود، تا آنچه دریافت می‌کنید همیشه تازه و اصل باشد.</p>
           <div className="grid grid-cols-3 gap-4">
             {[["موجودی محدود", Leaf], ["تست‌شده توسط متخصص پوست", ShieldCheck], ["بدون آزمایش حیوانی", Heart]].map(([label, Icon]) => (
@@ -2047,7 +2238,7 @@ function Storefront({ products, categories, reviews, currencySettings, theme, la
           <Reveal delay={0.1} className="order-1 lg:order-2 flex justify-center">
             {about.image ? (
               <div className="rounded-[2rem] overflow-hidden" style={{ width: "min(360px,80vw)", height: "min(360px,80vw)" }}>
-                <img src={about.image} alt="فلسفه ویینا" className="w-full h-full object-cover" />
+                <img src={about.image} alt="فلسفه وینا" className="w-full h-full object-cover" />
               </div>
             ) : (
               <div className="drop-anim flex items-center justify-center" style={{ width: "min(360px,80vw)", height: "min(360px,80vw)", background: `linear-gradient(150deg, ${palette.sageMist}, ${palette.nude}88)` }}>
@@ -2108,7 +2299,7 @@ function Storefront({ products, categories, reviews, currencySettings, theme, la
           {[
             { icon: ShieldCheck, title: "ضمانت ۱۰۰٪ اصالت کالا", desc: "هر محصول با بچ‌کد اصیل و قابل استعلام از تولیدکننده اصلی عرضه می‌شود." },
             { icon: Truck, title: "شرایط نگهداری استاندارد", desc: "زنجیره نگهداری سرد و بسته‌بندی ایمن، از انبار تا درب منزل شما." },
-            { icon: Clock, title: "پشتیبانی سریع و پاسخگو", desc: "تیم مشاوره پوستی ویینا همه‌روزه پاسخگوی سوالات شماست." },
+            { icon: Clock, title: "پشتیبانی سریع و پاسخگو", desc: "تیم مشاوره پوستی وینا همه‌روزه پاسخگوی سوالات شماست." },
           ].map((t, i) => (
             <Reveal key={i} delay={i * 0.08} className="flex items-start gap-4">
               <div className="w-11 h-11 rounded-2xl flex items-center justify-center shrink-0" style={{ background: `${palette.white}18` }}><t.icon size={19} style={{ color: palette.gold || "#D9C39A" }} /></div>
@@ -2124,7 +2315,7 @@ function Storefront({ products, categories, reviews, currencySettings, theme, la
     journal: () => {
       const journalPages = customPages.filter((pg) => pg.isJournal).slice(0, 3);
       if (journalPages.length === 0) return null;
-      const t = secText("journal", "ژورنال ویینا", "راهنمای مراقبت از پوست");
+      const t = secText("journal", "ژورنال وینا", "راهنمای مراقبت از پوست");
       return (
         <section key="journal" className="max-w-7xl mx-auto px-5 md:px-8 py-16 md:py-20">
           <RevealHeading className="mb-10 max-w-xl">
@@ -2241,8 +2432,64 @@ function Storefront({ products, categories, reviews, currencySettings, theme, la
       {renderHeader()}
 
       <main>
-        {productId ? (
+        {showBrandsIndex ? (
+          <BrandsIndexContent brands={brands} products={products} palette={palette} fontDisplay={fontDisplay} />
+        ) : brandSlug ? (
+          activeBrand ? sectionRenderers.shop({
+            list: products.filter((p) => p.brand === activeBrand.id),
+            kicker: "برند",
+            heading: activeBrand.name,
+            emptyTitle: "هنوز محصولی برای این برند ثبت نشده است",
+            extraHeader: (
+              <div className="mt-3 flex flex-col gap-3">
+                {activeBrand.logo && <img src={activeBrand.logo} alt={activeBrand.name} className="h-16 w-auto object-contain rounded-xl" />}
+                {activeBrand.description && <p style={{ color: palette.inkSoft, fontSize: 14, lineHeight: 1.9 }} className="max-w-xl">{activeBrand.description}</p>}
+                <Link to="/brands" className="self-start inline-flex items-center gap-1.5 rounded-full px-3.5 py-1.5 text-xs font-medium border" style={{ borderColor: palette.beige, color: palette.inkSoft }}>همه‌ی برندها</Link>
+              </div>
+            ),
+          }) : (
+            <div className="max-w-3xl mx-auto px-5 py-24 text-center"><EmptyState icon={Package} title="برند پیدا نشد" subtitle="این برند وجود ندارد یا حذف شده است." palette={palette} /></div>
+          )
+        ) : hashtag ? sectionRenderers.shop({
+          list: products.filter((p) => (p.hashtags || []).some((h) => normalizeHashtag(h) === hashtagKey)),
+          kicker: "هشتگ",
+          heading: `#${hashtag}`,
+          emptyTitle: "محصولی با این هشتگ پیدا نشد",
+          extraHeader: <Link to="/" className="mt-3 inline-flex items-center gap-1.5 rounded-full px-3.5 py-1.5 text-xs font-medium border" style={{ borderColor: palette.beige, color: palette.inkSoft }}>بازگشت به فروشگاه</Link>,
+        }) : (initialCategorySlug && !customPage && !productId) ? (
+          activeCategory ? sectionRenderers.shop({
+            list: products.filter((p) => p.category === activeCategory.id && (!activeSub || (p.subCategory || "").trim() === activeSub)),
+            kicker: "دسته‌بندی",
+            heading: activeCategory.name,
+            emptyTitle: "هنوز محصولی در این دسته‌بندی ثبت نشده است",
+            extraHeader: (
+              <div className="mt-3 flex flex-col gap-3">
+                {activeCategory.description && <p style={{ color: palette.inkSoft, fontSize: 14, lineHeight: 1.9 }} className="max-w-xl">{activeCategory.description}</p>}
+                {categorySubs.length > 0 && (
+                  <div className="rounded-2xl border overflow-hidden self-start w-full max-w-md" style={{ borderColor: palette.beige, background: palette.white }}>
+                    <button onClick={() => setSubDrawerOpen((v) => !v)} className="w-full flex items-center justify-between px-4 py-3 text-sm font-medium" style={{ color: palette.ink }}>
+                      <span>زیردسته‌ها{activeSub ? ` · ${activeSub}` : ""}</span>
+                      <ChevronDown size={16} style={{ transform: subDrawerOpen ? "rotate(180deg)" : "none", transition: "transform 0.3s", color: palette.sageDeep }} />
+                    </button>
+                    {subDrawerOpen && (
+                      <div className="flex flex-wrap gap-2 px-4 pb-4">
+                        <button onClick={() => setActiveSub(null)} className="rounded-full px-3.5 py-1.5 text-xs" style={{ background: !activeSub ? palette.sageDeep : palette.creamDeep, color: !activeSub ? palette.white : palette.inkSoft }}>همه</button>
+                        {categorySubs.map((sn) => (
+                          <button key={sn} onClick={() => setActiveSub(sn)} className="rounded-full px-3.5 py-1.5 text-xs" style={{ background: activeSub === sn ? palette.sageDeep : palette.creamDeep, color: activeSub === sn ? palette.white : palette.inkSoft }}>{sn}</button>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+                )}
+                <Link to="/" className="self-start inline-flex items-center gap-1.5 rounded-full px-3.5 py-1.5 text-xs font-medium border" style={{ borderColor: palette.beige, color: palette.inkSoft }}>بازگشت به فروشگاه</Link>
+              </div>
+            ),
+          }) : (
+            <div className="max-w-3xl mx-auto px-5 py-24 text-center"><EmptyState icon={Package} title="دسته‌بندی پیدا نشد" subtitle="این دسته‌بندی وجود ندارد یا حذف شده است." palette={palette} /></div>
+          )
+        ) : productId ? (
           <ProductDetailContent
+            brands={brands}
             productId={productId} products={products} categories={categories} reviews={reviews}
             palette={palette} fontDisplay={fontDisplay} fmt={fmt} onAddToCart={addToCart} navigate={navigate}
           />
@@ -2384,7 +2631,7 @@ function Storefront({ products, categories, reviews, currencySettings, theme, la
                       <div className="flex flex-col gap-2.5 mb-5">
                         {quizRecommendations.map((p) => (
                           <div key={p.id} className="flex items-center gap-3 rounded-2xl p-3" style={{ background: palette.creamDeep }}>
-                            <div className="rounded-xl flex items-center justify-center shrink-0" style={{ width: 44, height: 44, background: `${p.tint}55` }}><div className="scale-[0.45]"><Bottle tint={p.tint} ink={palette.ink} white={palette.white} /></div></div>
+                            <ProductMiniThumb product={p} palette={palette} size={44} />
                             <p className="flex-1 truncate" style={{ fontSize: 13, color: palette.ink }}>{p.name}</p>
                             <span style={{ fontSize: 12.5, color: palette.inkSoft }}>{fmt(p.salePrice || p.price)}</span>
                           </div>
@@ -2440,9 +2687,7 @@ function Storefront({ products, categories, reviews, currencySettings, theme, la
                   return (
                     <div key={id} className="rounded-2xl p-4 flex flex-col" style={{ border: `1px solid ${palette.beige}` }}>
                       <button onClick={() => toggleCompare(id)} className="self-end mb-2" aria-label="حذف از مقایسه"><X size={14} style={{ color: palette.inkSoft }} /></button>
-                      <div className="rounded-xl flex items-center justify-center mb-3 mx-auto" style={{ width: 88, height: 88, background: `${p.tint}55` }}>
-                        <Bottle tint={p.tint} ink={palette.ink} white={palette.white} label={buildProductAltText(p, categories)} />
-                      </div>
+                      <div className="mx-auto mb-3"><ProductMiniThumb product={p} palette={palette} size={88} /></div>
                       <p style={{ ...fontDisplay, fontSize: 15, color: palette.ink }} className="mb-2 text-center">{p.name}</p>
                       <div className="flex flex-col gap-2.5 mt-2 text-xs" style={{ color: palette.inkSoft }}>
                         <div><p className="font-medium mb-0.5" style={{ color: palette.ink }}>قیمت</p><p>{fmt(p.salePrice || p.price)}</p></div>
@@ -2511,7 +2756,7 @@ function Storefront({ products, categories, reviews, currencySettings, theme, la
                 <div className="flex flex-col gap-5">
                   {cartItems.map((c) => (
                     <div key={c.id} className="flex gap-3">
-                      <div className="rounded-2xl flex items-center justify-center shrink-0" style={{ width: 68, height: 68, background: `${c.product.tint}55` }}><div className="scale-75"><Bottle tint={c.product.tint} ink={palette.ink} white={palette.white} label={`${c.product.name} - خرید از ${BRAND_NAME}`} /></div></div>
+                      <ProductMiniThumb product={c.product} palette={palette} size={68} rounded="rounded-2xl" />
                       <div className="flex-1 flex flex-col">
                         <div className="flex items-start justify-between gap-2">
                           <p style={{ ...fontDisplay, fontSize: 15, color: palette.ink }} className="leading-tight">{c.product.name}</p>
@@ -2838,7 +3083,7 @@ function AuthPage({ theme, authSettings, onLogin, onBack }) {
               <div aria-hidden="true" className="mx-auto rounded-full" style={{ width: "70%", height: 5, marginTop: 6, background: `linear-gradient(90deg, transparent, ${palette.white}CC, transparent)`, filter: "blur(1px)" }} />
             </div>
 
-            <p className="hidden lg:block max-w-[220px] relative z-10" style={{ color: palette.inkSoft, fontSize: 13, textAlign: "center", lineHeight: 1.8 }}>دوستان کوچک ویینا همراه شما در مسیر مراقبت از پوست</p>
+            <p className="hidden lg:block max-w-[220px] relative z-10" style={{ color: palette.inkSoft, fontSize: 13, textAlign: "center", lineHeight: 1.8 }}>دوستان کوچک وینا همراه شما در مسیر مراقبت از پوست</p>
           </div>
         )}
 
@@ -2916,7 +3161,7 @@ function AuthPage({ theme, authSettings, onLogin, onBack }) {
                 </>
               )}
 
-              <p style={{ fontSize: 11.5, color: palette.inkSoft }} className="text-center mt-6">با ادامه، شما <a href="#" className="underline">شرایط استفاده</a> و <a href="#" className="underline">حریم خصوصی</a> ویینا را می‌پذیرید.</p>
+              <p style={{ fontSize: 11.5, color: palette.inkSoft }} className="text-center mt-6">با ادامه، شما <a href="#" className="underline">شرایط استفاده</a> و <a href="#" className="underline">حریم خصوصی</a> وینا را می‌پذیرید.</p>
             </>
           ) : (
             <div className="flex flex-col items-center text-center">
@@ -3095,7 +3340,7 @@ function CheckoutPage({ cart, products, user, currencySettings, theme, rewardsSe
               <div className="flex flex-col gap-3 max-h-64 overflow-y-auto pl-1">
                 {cartItems.map((c) => (
                   <div key={c.id} className="flex items-center gap-3">
-                    <div className="rounded-xl flex items-center justify-center shrink-0" style={{ width: 44, height: 44, background: `${c.product.tint}55` }}><div className="scale-50"><Bottle tint={c.product.tint} ink={palette.ink} white={palette.white} label={`${c.product.name} - خرید از ${BRAND_NAME}`} /></div></div>
+                    <ProductMiniThumb product={c.product} palette={palette} size={44} />
                     <div className="flex-1 min-w-0"><p className="truncate" style={{ fontSize: 13 }}>{c.product.name}</p><p style={{ fontSize: 11.5, color: palette.inkSoft }}>{c.qty} × {fmt(c.product.salePrice || c.product.price)}</p></div>
                     <span style={{ fontSize: 13 }}>{fmt((c.product.salePrice || c.product.price) * c.qty)}</span>
                   </div>
@@ -3201,7 +3446,7 @@ const ADMIN_PALETTE = THEME_PRESETS["مینیمال گرم"];
 /* ---------------- Product form ---------------- */
 function emptyProductDraft() {
   return { title: "", sku: "", tag: "جدید", shortDescription: "", description: "", price: "", salePrice: "", cost: "",
-    stock: "", threshold: "10", category: "", subCategory: "", skinTags: [], concerns: [], volume: "", ingredients: "",
+    stock: "", threshold: "10", category: "", subCategory: "", brand: "", hashtags: "", skinTags: [], concerns: [], volume: "", ingredients: "",
     images: [], metaTitle: "", metaDescription: "", slug: "" };
 }
 /* Reusable single-field version of the product form's upload
@@ -3238,7 +3483,7 @@ function ImageUploadField({ value, onChange, placeholder }) {
 }
 
 
-function ProductFormModal({ draft, setDraft, onCancel, onSave, isEdit, categories }) {
+function ProductFormModal({ draft, setDraft, onCancel, onSave, isEdit, categories, brands = [] }) {
   const p = ADMIN_PALETTE;
   function toggleSkinTag(tag) { setDraft((d) => ({ ...d, skinTags: d.skinTags.includes(tag) ? d.skinTags.filter((t) => t !== tag) : [...d.skinTags, tag] })); }
   function toggleConcern(c) { setDraft((d) => ({ ...d, concerns: d.concerns.includes(c) ? d.concerns.filter((t) => t !== c) : [...d.concerns, c] })); }
@@ -3309,9 +3554,24 @@ function ProductFormModal({ draft, setDraft, onCancel, onSave, isEdit, categorie
                   {categories.map((c) => <option key={c.id} value={c.id}>{c.name}</option>)}
                 </SelectInput>
               </div>
-              <div><FieldLabel palette={p}>زیردسته</FieldLabel><TextInput palette={p} value={draft.subCategory} onChange={(e) => setDraft({ ...draft, subCategory: e.target.value })} placeholder="مثلاً سرم روشن‌کننده" /></div>
+              <div><FieldLabel palette={p}>زیردسته</FieldLabel>
+                <TextInput palette={p} list="viina-subcategory-options" value={draft.subCategory} onChange={(e) => setDraft({ ...draft, subCategory: e.target.value })} placeholder="مثلاً سرم روشن‌کننده" />
+                <datalist id="viina-subcategory-options">
+                  {((categories.find((c) => c.id === draft.category) || {}).subcategories || []).map((sn) => <option key={sn} value={sn} />)}
+                </datalist>
+              </div>
             </div>
           )}
+          <div className="grid grid-cols-2 gap-4">
+            <div><FieldLabel palette={p}>برند</FieldLabel>
+              <SelectInput palette={p} value={draft.brand || ""} onChange={(e) => setDraft({ ...draft, brand: e.target.value })}>
+                <option value="">بدون برند</option>
+                {brands.map((b) => <option key={b.id} value={b.id}>{b.name}</option>)}
+              </SelectInput>
+              {brands.length === 0 && <p style={{ fontSize: 11.5, color: p.inkSoft }} className="mt-1">ابتدا از تب «برندها» یک برند اضافه کنید.</p>}
+            </div>
+            <div><FieldLabel palette={p}>هشتگ‌ها (با کاما جدا کنید)</FieldLabel><TextInput palette={p} value={draft.hashtags || ""} onChange={(e) => setDraft({ ...draft, hashtags: e.target.value })} placeholder="مثلاً ویتامین_ث، ضدلک، سرم" /></div>
+          </div>
           <div><FieldLabel palette={p}>برچسب نوع پوست</FieldLabel>
             <div className="flex flex-wrap gap-2">
               {SKIN_TAG_OPTIONS.map((tag) => (
@@ -3389,7 +3649,7 @@ function ProductFormModal({ draft, setDraft, onCancel, onSave, isEdit, categorie
 }
 
 /* ---------------- Category form ---------------- */
-function emptyCategoryDraft() { return { name: "", slug: "", banner: "", description: "", featured: false, order: "1", icon: "tag" }; }
+function emptyCategoryDraft() { return { name: "", slug: "", banner: "", description: "", featured: false, order: "1", icon: "tag", subcategories: "" }; }
 function CategoryFormModal({ draft, setDraft, onCancel, onSave, isEdit }) {
   const p = ADMIN_PALETTE;
   return (
@@ -3411,6 +3671,7 @@ function CategoryFormModal({ draft, setDraft, onCancel, onSave, isEdit }) {
           <ImageUploadField value={draft.banner} onChange={(url) => setDraft({ ...draft, banner: url })} placeholder="آدرس تصویر یا آپلود مستقیم" />
         </div>
         <div><FieldLabel palette={p}>توضیحات</FieldLabel><TextArea palette={p} rows={2} value={draft.description} onChange={(e) => setDraft({ ...draft, description: e.target.value })} /></div>
+        <div><FieldLabel palette={p}>زیردسته‌ها (با کاما جدا کنید)</FieldLabel><TextInput palette={p} value={draft.subcategories || ""} onChange={(e) => setDraft({ ...draft, subcategories: e.target.value })} placeholder="مثلاً سرم روشن‌کننده، کرم دور چشم" /></div>
         <div className="grid grid-cols-2 gap-4 items-center">
           <div><FieldLabel palette={p}>ترتیب نمایش</FieldLabel><TextInput palette={p} type="number" min="1" value={draft.order} onChange={(e) => setDraft({ ...draft, order: e.target.value })} /></div>
           <Toggle palette={p} label="دسته ویژه" on={draft.featured} onChange={(v) => setDraft({ ...draft, featured: v })} />
@@ -3484,7 +3745,7 @@ function ReviewFormModal({ draft, setDraft, onCancel, onSave }) {
 }
 function ReplyModal({ review, onCancel, onSend }) {
   const p = ADMIN_PALETTE;
-  const [text, setText] = useState(`سلام ${review.name.split(" ")[0]}،\n\nممنون از اینکه تجربه‌تان را با ما در میان گذاشتید.\n\nتیم ویینا`);
+  const [text, setText] = useState(`سلام ${review.name.split(" ")[0]}،\n\nممنون از اینکه تجربه‌تان را با ما در میان گذاشتید.\n\nتیم وینا`);
   return (
     <ModalShell onClose={onCancel} title="پاسخ به نظر مشتری" palette={p}>
       <div className="rounded-2xl p-4 mb-4" style={{ background: p.creamDeep }}>
@@ -3701,7 +3962,7 @@ function OverviewTab({ products, categories, orders, currencySettings, onQuickAd
               {topProducts.map((pr, i) => (
                 <div key={pr.id} className="flex items-center gap-3">
                   <span style={{ fontFamily: "'Noto Serif Arabic', serif", fontSize: 14, color: p.inkSoft, width: 18 }}>{i + 1}</span>
-                  <div className="rounded-lg flex items-center justify-center shrink-0" style={{ width: 32, height: 32, background: `${pr.tint}55` }}><div className="scale-[0.35]"><Bottle tint={pr.tint} ink={p.ink} white={p.white} /></div></div>
+                  <ProductMiniThumb product={pr} palette={p} size={32} rounded="rounded-lg" />
                   <p className="flex-1 truncate" style={{ fontSize: 13.5, color: p.ink }}>{pr.name}</p>
                   <span style={{ fontSize: 12, color: p.inkSoft }}>{pr.sold} فروش</span>
                 </div>
@@ -3810,6 +4071,61 @@ function ProductsTab({ products, categories, currencySettings, onAdd, onEdit, on
 /* ================================================================
    TAB: Categories
 ================================================================= */
+/* ---------------- Brands (admin) ---------------- */
+function emptyBrandDraft() { return { name: "", slug: "", logo: "", description: "" }; }
+function BrandFormModal({ draft, setDraft, onCancel, onSave, isEdit }) {
+  const p = ADMIN_PALETTE;
+  return (
+    <ModalShell onClose={onCancel} title={isEdit ? "ویرایش برند" : "افزودن برند"} palette={p}>
+      <form onSubmit={(e) => { e.preventDefault(); onSave(); }} className="flex flex-col gap-4">
+        <div><FieldLabel palette={p}>نام برند</FieldLabel><TextInput palette={p} required value={draft.name} onChange={(e) => setDraft({ ...draft, name: e.target.value })} /></div>
+        <div><FieldLabel palette={p}>آدرس صفحه (Slug)</FieldLabel><TextInput palette={p} value={draft.slug} onChange={(e) => setDraft({ ...draft, slug: e.target.value })} dir="ltr" placeholder="خالی بگذارید تا خودکار ساخته شود" /></div>
+        <div><FieldLabel palette={p}>لوگو / تصویر برند</FieldLabel>
+          <ImageUploadField value={draft.logo} onChange={(url) => setDraft({ ...draft, logo: url })} placeholder="آدرس تصویر یا آپلود مستقیم" />
+        </div>
+        <div><FieldLabel palette={p}>توضیحات برند</FieldLabel><TextArea palette={p} rows={3} value={draft.description} onChange={(e) => setDraft({ ...draft, description: e.target.value })} /></div>
+        <div className="sticky bottom-0 -mx-6 md:-mx-7 -mb-6 md:-mb-7 px-6 md:px-7 pb-6 md:pb-7 pt-4 mt-2 flex gap-3" style={{ background: p.white }}>
+          <button type="button" onClick={onCancel} className="flex-1 rounded-full py-3 text-sm font-medium border" style={{ borderColor: p.beige, color: p.ink }}>انصراف</button>
+          <button type="submit" className="flex-1 rounded-full py-3 text-sm font-medium" style={{ background: p.sageDeep, color: p.white }}>{isEdit ? "ذخیره تغییرات" : "افزودن برند"}</button>
+        </div>
+      </form>
+    </ModalShell>
+  );
+}
+function BrandsTab({ brands, products, onAdd, onEdit, onDelete }) {
+  const p = ADMIN_PALETTE;
+  if (brands.length === 0) return <EmptyState icon={Tag} title="هنوز برندی اضافه نشده است" subtitle="نام و لوگوی هر برند را اضافه کنید؛ برای هر برند یک صفحه‌ی جدا ساخته می‌شود و آدرس همه‌ی برندها /brands است." actionLabel="افزودن برند" onAction={onAdd} palette={p} />;
+  const sorted = [...brands].sort((a, b) => String(a.name).localeCompare(String(b.name), "fa"));
+  return (
+    <div className="flex flex-col gap-5">
+      <div className="flex items-center justify-between">
+        <p style={{ color: p.inkSoft, fontSize: 13.5 }}>{brands.length} برند · صفحه‌ی همه‌ی برندها: /brands</p>
+        <button onClick={onAdd} className="inline-flex items-center gap-2 rounded-full px-5 py-2.5 text-sm font-medium" style={{ background: p.sageDeep, color: p.white }}><Plus size={15} /> افزودن برند</button>
+      </div>
+      <div className="flex flex-col gap-3">
+        {sorted.map((b) => {
+          const count = products.filter((pr) => pr.brand === b.id).length;
+          return (
+            <div key={b.id} className="rounded-3xl p-4 flex items-center gap-4" style={{ background: p.white, border: `1px solid ${p.beige}` }}>
+              <div className="w-14 h-14 rounded-2xl flex items-center justify-center shrink-0 overflow-hidden" style={{ background: p.sageMist }}>
+                {b.logo ? <img src={b.logo} alt={b.name} className="w-full h-full object-contain" /> : <Tag size={18} style={{ color: p.sageDeep }} />}
+              </div>
+              <div className="flex-1 min-w-0">
+                <p style={{ fontFamily: "'Noto Serif Arabic', serif", fontSize: 15.5, color: p.ink }}>{b.name}</p>
+                <p style={{ fontSize: 12, color: p.inkSoft }} className="truncate" dir="ltr">/brand/{b.slug || b.id} · {count} محصول</p>
+              </div>
+              <div className="flex items-center gap-3 shrink-0">
+                <button onClick={() => onEdit(b)} aria-label="ویرایش برند"><Pencil size={15} style={{ color: p.inkSoft }} /></button>
+                <button onClick={() => onDelete(b.id)} aria-label="حذف برند"><Trash2 size={15} style={{ color: "#A5453A" }} /></button>
+              </div>
+            </div>
+          );
+        })}
+      </div>
+    </div>
+  );
+}
+
 function CategoriesTab({ categories, products, onAdd, onEdit, onDelete, onToggleFeatured }) {
   const p = ADMIN_PALETTE;
   if (categories.length === 0) return <EmptyState icon={Layers} title="هنوز دسته‌بندی‌ای اضافه نشده است" subtitle="اولین دسته‌بندی فروشگاه خود را ایجاد کنید." actionLabel="افزودن دسته‌بندی" onAction={onAdd} palette={p} />;
@@ -4270,7 +4586,7 @@ function QuizBuilderTab({ quizSettings, setQuizSettings, quizQuestions, setQuizQ
                     return (
                       <button type="button" key={pr.id} onClick={() => toggleResultProduct(pr.id)} className="flex items-center gap-2 rounded-2xl p-2.5 border text-right transition-all"
                         style={{ background: active ? p.sageMist : p.white, borderColor: active ? p.sageDeep : p.beige }}>
-                        <div className="rounded-lg flex items-center justify-center shrink-0" style={{ width: 32, height: 32, background: `${pr.tint}55` }}><div className="scale-[0.35]"><Bottle tint={pr.tint} ink={p.ink} white={p.white} /></div></div>
+                        <ProductMiniThumb product={pr} palette={p} size={32} rounded="rounded-lg" />
                         <span className="flex-1 truncate" style={{ fontSize: 12.5, color: p.ink }}>{pr.name}</span>
                         {active && <Check size={14} style={{ color: p.sageDeep }} />}
                       </button>
@@ -5176,6 +5492,7 @@ const NAV_ITEMS = [
   { key: "overview", label: "نمای کلی / آمار", icon: LayoutGrid },
   { key: "products", label: "مدیریت محصولات", icon: Package },
   { key: "categories", label: "دسته‌بندی‌ها", icon: Layers },
+  { key: "brands", label: "برندها", icon: Tag },
   { key: "pages", label: "صفحات و مسیرها", icon: LinkIcon },
   { key: "bundles", label: "بسته‌های روتین", icon: PackageCheck },
   { key: "orders", label: "مدیریت سفارش‌ها", icon: ClipboardList },
@@ -5190,7 +5507,7 @@ const NAV_ITEMS = [
 ];
 
 function AdminDashboard({
-  products, setProducts, categories, setCategories, reviews, setReviews,
+  products, setProducts, categories, setCategories, brands = [], setBrands, reviews, setReviews,
   currencySettings, setCurrencySettings, theme, setTheme, layout, setLayout,
   homeSections, setHomeSections, header, setHeader, announcement, setAnnouncement,
   footer, setFooter, banner, setBanner, hero, setHero, faqs, setFaqs, welcomeModal, setWelcomeModal, authSettings, setAuthSettings,
@@ -5229,6 +5546,9 @@ function AdminDashboard({
   const [catModalOpen, setCatModalOpen] = useState(false);
   const [editingCatId, setEditingCatId] = useState(null);
   const [catDraft, setCatDraft] = useState(emptyCategoryDraft());
+  const [brandModalOpen, setBrandModalOpen] = useState(false);
+  const [editingBrandId, setEditingBrandId] = useState(null);
+  const [brandDraft, setBrandDraft] = useState(emptyBrandDraft());
   const [pageModalOpen, setPageModalOpen] = useState(false);
   const [editingPageId, setEditingPageId] = useState(null);
   const [pageDraft, setPageDraft] = useState(emptyPageDraft());
@@ -5252,7 +5572,7 @@ function AdminDashboard({
     setDraft({
       title: pr.name, sku: pr.sku || "", tag: pr.tag || "جدید", shortDescription: pr.shortDescription || "", description: pr.description || "",
       price: String(pr.price), salePrice: pr.salePrice != null ? String(pr.salePrice) : "", cost: pr.cost != null ? String(pr.cost) : "",
-      stock: String(pr.qty), threshold: String(pr.threshold || 10), category: pr.category, subCategory: pr.subCategory || "",
+      stock: String(pr.qty), threshold: String(pr.threshold || 10), category: pr.category, subCategory: pr.subCategory || "", brand: pr.brand || "", hashtags: (pr.hashtags || []).join("، "),
       skinTags: pr.skinTags || [], concerns: pr.concerns || [], volume: pr.volume || "", ingredients: pr.ingredients || "", images: getProductImages(pr),
       metaTitle: pr.metaTitle || "", metaDescription: pr.metaDescription || "", slug: pr.slug || "",
     });
@@ -5268,7 +5588,7 @@ function AdminDashboard({
     const fields = {
       name: draft.title, sku: draft.sku, tag: draft.tag, shortDescription: draft.shortDescription, description: draft.description,
       price: Number(draft.price) || 0, salePrice: draft.salePrice ? Number(draft.salePrice) : null, cost: Number(draft.cost) || 0,
-      qty, threshold, stockStatus, category: draft.category, subCategory: draft.subCategory, skinTags: draft.skinTags, concerns: draft.concerns, volume: draft.volume,
+      qty, threshold, stockStatus, category: draft.category, subCategory: draft.subCategory, brand: draft.brand || "", hashtags: parseHashtags(draft.hashtags), skinTags: draft.skinTags, concerns: draft.concerns, volume: draft.volume,
       ingredients: draft.ingredients, images: draft.images || [], mainImage: "", hoverImage: "", extraImage: "",
       metaTitle: draft.metaTitle || `${draft.title} | ${BRAND_NAME}`, metaDescription: autoMetaDescription, slug,
       skin: draft.skinTags[0] ? `مناسب پوست ${draft.skinTags.join("، ")}` : "",
@@ -5276,7 +5596,8 @@ function AdminDashboard({
     if (editingId != null) {
       setProducts((prev) => prev.map((pr) => pr.id === editingId ? { ...pr, ...fields } : pr));
     } else {
-      const nextId = Math.max(0, ...products.map((pr) => pr.id)) + 1;
+      /* timestamp-based so two admins adding a product at the same moment can never receive the same id */
+      const nextId = Math.max(Math.max(0, ...products.map((pr) => pr.id)) + 1, Date.now());
       const tints = [p.nude, p.sage, p.beige, p.nudeDeep, p.sageDeep, p.creamDeep];
       setProducts((prev) => [...prev, { id: nextId, rating: 0, reviews: 0, tint: tints[nextId % tints.length], ...fields }]);
     }
@@ -5284,7 +5605,7 @@ function AdminDashboard({
   }
   function deleteProduct(id) { if (window.confirm("این محصول از کاتالوگ حذف شود؟")) setProducts((prev) => prev.filter((pr) => pr.id !== id)); }
   function duplicateProduct(pr) {
-    const nextId = Math.max(0, ...products.map((x) => x.id)) + 1;
+    const nextId = Math.max(Math.max(0, ...products.map((x) => x.id)) + 1, Date.now());
     setProducts((prev) => [...prev, { ...pr, id: nextId, name: `${pr.name} (کپی)`, sku: pr.sku ? `${pr.sku}-COPY` : "" }]);
   }
   function bulkDelete(ids) { if (window.confirm(`${ids.length} محصول انتخاب‌شده حذف شوند؟`)) setProducts((prev) => prev.filter((pr) => !ids.includes(pr.id))); }
@@ -5295,14 +5616,14 @@ function AdminDashboard({
   function openEditCategory(c) {
     setEditingCatId(c.id);
     const iconKey = CATEGORY_ICON_OPTIONS.some((o) => o.key === c.icon) ? c.icon : "tag";
-    setCatDraft({ name: c.name, slug: c.slug || "", banner: c.banner || "", description: c.description || "", featured: !!c.featured, order: String(c.order || 1), icon: iconKey });
+    setCatDraft({ name: c.name, slug: c.slug || "", banner: c.banner || "", description: c.description || "", featured: !!c.featured, order: String(c.order || 1), icon: iconKey, subcategories: (c.subcategories || []).join("، ") });
     setCatModalOpen(true);
   }
   function saveCategory() {
     const iconKey = CATEGORY_ICON_OPTIONS.some((o) => o.key === catDraft.icon) ? catDraft.icon : "tag";
     const otherSlugs = categories.filter((c) => c.id !== editingCatId).map((c) => c.slug).filter(Boolean);
     const slug = uniqueSlug(catDraft.slug || catDraft.name, otherSlugs);
-    const fields = { name: catDraft.name, slug, banner: catDraft.banner, description: catDraft.description, featured: catDraft.featured, order: Number(catDraft.order) || 1, icon: iconKey, blurb: catDraft.description.slice(0, 24) };
+    const fields = { name: catDraft.name, slug, banner: catDraft.banner, description: catDraft.description, featured: catDraft.featured, order: Number(catDraft.order) || 1, icon: iconKey, blurb: catDraft.description.slice(0, 24), subcategories: String(catDraft.subcategories || "").split(/[,،]+/).map((x) => x.trim()).filter(Boolean) };
     if (editingCatId != null) {
       setCategories((prev) => prev.map((c) => c.id === editingCatId ? { ...c, ...fields } : c));
     } else {
@@ -5310,6 +5631,22 @@ function AdminDashboard({
       setCategories((prev) => [...prev, { id, ...fields }]);
     }
     setCatModalOpen(false);
+  }
+  /* ---- brand handlers ---- */
+  function openAddBrand() { setEditingBrandId(null); setBrandDraft(emptyBrandDraft()); setBrandModalOpen(true); }
+  function openEditBrand(b) { setEditingBrandId(b.id); setBrandDraft({ name: b.name, slug: b.slug || "", logo: b.logo || "", description: b.description || "" }); setBrandModalOpen(true); }
+  function saveBrand() {
+    const otherSlugs = brands.filter((b) => b.id !== editingBrandId).map((b) => b.slug).filter(Boolean);
+    const slug = uniqueSlug(brandDraft.slug || brandDraft.name, otherSlugs);
+    const fields = { name: brandDraft.name.trim(), slug, logo: brandDraft.logo, description: brandDraft.description };
+    if (editingBrandId != null) setBrands((prev) => prev.map((b) => b.id === editingBrandId ? { ...b, ...fields } : b));
+    else setBrands((prev) => [...prev, { id: "brand-" + Date.now(), ...fields }]);
+    setBrandModalOpen(false);
+  }
+  function deleteBrand(id) {
+    if (!window.confirm("این برند حذف شود؟ محصولات آن بدون برند می‌شوند.")) return;
+    setBrands((prev) => prev.filter((b) => b.id !== id));
+    setProducts((prev) => prev.map((pr) => pr.brand === id ? { ...pr, brand: "" } : pr));
   }
   function deleteCategory(id) { if (window.confirm("این دسته‌بندی حذف شود؟")) setCategories((prev) => prev.filter((c) => c.id !== id)); }
   function toggleFeaturedCategory(id) { setCategories((prev) => prev.map((c) => c.id === id ? { ...c, featured: !c.featured } : c)); }
@@ -5509,6 +5846,7 @@ function AdminDashboard({
         <div className="px-5 md:px-8 py-7 max-w-7xl">
           {tab === "overview" && <OverviewTab products={products} categories={categories} orders={orders} currencySettings={currencySettings} onQuickAdd={openAdd} onQuickCoupon={() => setCouponModalOpen(true)} onExportReport={exportSalesReport} />}
           {tab === "products" && <ProductsTab products={products} categories={categories} currencySettings={currencySettings} onAdd={openAdd} onEdit={openEdit} onDuplicate={duplicateProduct} onDelete={deleteProduct} onBulkDelete={bulkDelete} onBulkStatus={bulkStatus} onGotoCategories={() => setTab("categories")} />}
+          {tab === "brands" && <BrandsTab brands={brands} products={products} onAdd={openAddBrand} onEdit={openEditBrand} onDelete={deleteBrand} />}
           {tab === "categories" && <CategoriesTab categories={categories} products={products} onAdd={openAddCategory} onEdit={openEditCategory} onDelete={deleteCategory} onToggleFeatured={toggleFeaturedCategory} />}
           {tab === "pages" && <PagesTab customPages={customPages} onAdd={openAddPage} onEdit={openEditPage} onDelete={deletePage} onToggleHeaderNav={toggleHeaderNavForPage} onToggleFooterNav={toggleFooterNavForPage} headerNavLinks={header.navLinks} footerLinks={footer.col3Links} />}
           {tab === "bundles" && <BundlesTab bundles={bundles} products={products} onAdd={openAddBundle} onEdit={openEditBundle} onDelete={deleteBundle} />}
@@ -5543,7 +5881,8 @@ function AdminDashboard({
         </div>
       </main>
 
-      {modalOpen && <ProductFormModal draft={draft} setDraft={setDraft} onCancel={() => setModalOpen(false)} onSave={saveDraft} isEdit={editingId != null} categories={categories} />}
+      {modalOpen && <ProductFormModal draft={draft} setDraft={setDraft} onCancel={() => setModalOpen(false)} onSave={saveDraft} isEdit={editingId != null} categories={categories} brands={brands} />}
+      {brandModalOpen && <BrandFormModal draft={brandDraft} setDraft={setBrandDraft} onCancel={() => setBrandModalOpen(false)} onSave={saveBrand} isEdit={editingBrandId != null} />}
       {catModalOpen && <CategoryFormModal draft={catDraft} setDraft={setCatDraft} onCancel={() => setCatModalOpen(false)} onSave={saveCategory} isEdit={editingCatId != null} />}
       {pageModalOpen && <PageFormModal draft={pageDraft} setDraft={setPageDraft} onCancel={() => setPageModalOpen(false)} onSave={savePage} isEdit={editingPageId != null} />}
       {bundleModalOpen && <BundleFormModal draft={bundleDraft} setDraft={setBundleDraft} onCancel={() => setBundleModalOpen(false)} onSave={saveBundle} isEdit={editingBundleId != null} products={products} />}
@@ -5669,7 +6008,7 @@ export default function App() {
       <div className="fixed inset-0 flex items-center justify-center" style={{ background: "#171717" }}>
         <div className="flex flex-col items-center gap-3">
           <div className="w-10 h-10 rounded-full border-4 animate-spin" style={{ borderColor: "#3A362F", borderTopColor: "#B99656" }} />
-          <p style={{ color: "#D9C39A", fontFamily: "'Vazirmatn', sans-serif", fontSize: 13 }}>در حال بارگذاری ویینا…</p>
+          <p style={{ color: "#D9C39A", fontFamily: "'Vazirmatn', sans-serif", fontSize: 13 }}>در حال بارگذاری وینا…</p>
         </div>
       </div>
     );
@@ -5695,6 +6034,16 @@ function CategoryRouteWrapper(props) {
   const { slug } = useParams();
   return <Storefront {...props} initialCategorySlug={slug} />;
 }
+function BrandRouteWrapper(props) {
+  const { slug } = useParams();
+  return <Storefront {...props} brandSlug={slug} />;
+}
+function HashtagRouteWrapper(props) {
+  const { tag } = useParams();
+  let decoded = tag;
+  try { decoded = decodeURIComponent(tag); } catch { /* malformed escape — use raw */ }
+  return <Storefront {...props} hashtag={decoded} />;
+}
 function PageRouteWrapper(props) {
   const { slug } = useParams();
   const matchedPage = (props.customPages || []).find((pg) => pg.slug === slug);
@@ -5705,8 +6054,17 @@ function PageRouteWrapper(props) {
 function AppShell({ remoteContent }) {
   const location = useLocation();
   const navigate = useNavigate();
+  /* The whole site lives inside one scrollable card (not the window),
+     so React Router's route changes don't reset scroll on their own:
+     clicking a category/brand/product from the middle of a long page
+     used to leave the viewport exactly where it was, which looked like
+     "nothing happened". Jump the card back to the top on every path
+     change so a click always lands visibly on the new page. */
+  const scrollRootRef = useRef(null);
+  useEffect(() => { if (scrollRootRef.current) scrollRootRef.current.scrollTop = 0; }, [location.pathname]);
   const [products, setProducts] = useSyncedState("products", asArray(remoteContent.products));
   const [categories, setCategories] = useSyncedState("categories", asArray(remoteContent.categories));
+  const [brands, setBrands] = useSyncedState("brands", asArray(remoteContent.brands));
   const [reviews, setReviews] = useSyncedState("reviews", asArray(remoteContent.reviews));
   const [currencySettings, setCurrencySettings] = useSyncedState("currencySettings", remoteContent.currencySettings ?? { currency: "toman", currencyLabel: "تومان", digitStyle: "en" });
   const [theme, setTheme] = useSyncedState("theme", remoteContent.theme ?? DEFAULT_THEME);
@@ -5788,7 +6146,7 @@ function AppShell({ remoteContent }) {
   }
 
   const storefrontProps = {
-    products, categories, reviews, currencySettings, theme, layout, header, announcement, footer, banner,
+    products, categories, brands, reviews, currencySettings, theme, layout, header, announcement, footer, banner,
     homeSections, faqs, welcomeModal, cart, setCart, user, freeShipThreshold, ingredientLibrary,
     quizSettings, quizQuestions, quizResults, rewardsSettings, customPages, bundles, glowSlider, about, sectionCopy,
     onOpenAdmin: goAdmin, onGoAuth: goAuth, onGoCheckout: goCheckout,
@@ -5799,6 +6157,9 @@ function AppShell({ remoteContent }) {
       <Route path="/" element={<Storefront {...storefrontProps} />} />
       <Route path="/product/:id" element={<ProductRouteWrapper {...storefrontProps} />} />
       <Route path="/category/:slug" element={<CategoryRouteWrapper {...storefrontProps} />} />
+      <Route path="/brands" element={<Storefront {...storefrontProps} showBrandsIndex />} />
+      <Route path="/brand/:slug" element={<BrandRouteWrapper {...storefrontProps} />} />
+      <Route path="/hashtag/:tag" element={<HashtagRouteWrapper {...storefrontProps} />} />
       <Route path="/page/:slug" element={<PageRouteWrapper {...storefrontProps} />} />
       <Route path="/auth" element={<AuthPage theme={theme} authSettings={authSettings} onLogin={handleLogin} onBack={goStore} />} />
       <Route
@@ -5815,7 +6176,7 @@ function AppShell({ remoteContent }) {
         path="/admin"
         element={!adminAuthed ? null : (
           <AdminDashboard
-            products={products} setProducts={setProducts} categories={categories} setCategories={setCategories}
+            products={products} setProducts={setProducts} categories={categories} setCategories={setCategories} brands={brands} setBrands={setBrands}
             reviews={reviews} setReviews={setReviews} currencySettings={currencySettings} setCurrencySettings={setCurrencySettings}
             theme={theme} setTheme={setTheme} layout={layout} setLayout={setLayout} homeSections={homeSections} setHomeSections={setHomeSections}
             header={header} setHeader={setHeader} announcement={announcement} setAnnouncement={setAnnouncement} footer={footer} setFooter={setFooter}
@@ -5859,6 +6220,7 @@ function AppShell({ remoteContent }) {
           z-index layer structure itself is unchanged either way. */}
       <div className="fixed inset-0 z-20 flex items-stretch justify-center p-0 md:p-6 pointer-events-none">
         <div
+          ref={scrollRootRef}
           className="relative z-20 my-0 mx-auto w-full max-w-6xl rounded-none md:rounded-3xl overflow-hidden overflow-y-auto overflow-x-hidden shadow-none md:shadow-[0_20px_60px_rgba(0,0,0,0.4)] border-0 md:border md:border-white/20 pointer-events-auto"
           style={{ background: theme.cream || "#FBF7F1" }}
         >
