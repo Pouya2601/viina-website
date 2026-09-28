@@ -85,13 +85,18 @@ const TEXT_ALIGN_OPTIONS = [
 ];
 
 const DEFAULT_LAYOUT = {
-  desktopCols: 4, mobileCols: 2, itemsPerPage: 12,
+  desktopCols: 4, mobileCols: 2, itemsPerPage: 12, categoryDesktopCols: 3, categoryMobileCols: 2,
   showStockQty: false, showLowStock: true, showRatings: true, showReviewCount: true,
   showWishlist: true, showDiscountBadge: true, showQuickView: true,
 };
 const GRID_COLS_CLASS = {
   "1-3": "grid-cols-1 lg:grid-cols-3", "1-4": "grid-cols-1 lg:grid-cols-4", "1-5": "grid-cols-1 lg:grid-cols-5",
   "2-3": "grid-cols-2 lg:grid-cols-3", "2-4": "grid-cols-2 lg:grid-cols-4", "2-5": "grid-cols-2 lg:grid-cols-5",
+};
+const CATEGORY_COLS_CLASS = {
+  "1-2": "grid-cols-1 md:grid-cols-2", "1-3": "grid-cols-1 md:grid-cols-3", "1-4": "grid-cols-1 md:grid-cols-4", "1-5": "grid-cols-1 md:grid-cols-5",
+  "2-2": "grid-cols-2 md:grid-cols-2", "2-3": "grid-cols-2 md:grid-cols-3", "2-4": "grid-cols-2 md:grid-cols-4", "2-5": "grid-cols-2 md:grid-cols-5",
+  "3-2": "grid-cols-3 md:grid-cols-2", "3-3": "grid-cols-3 md:grid-cols-3", "3-4": "grid-cols-3 md:grid-cols-4", "3-5": "grid-cols-3 md:grid-cols-5",
 };
 const ITEMS_PER_PAGE_OPTIONS = [8, 12, 16, 24, "نامحدود"];
 
@@ -699,8 +704,9 @@ function resolveNavHref(href) {
   if (legacyMatch) return `/${legacyMatch[1]}/${legacyMatch[2]}`;
   return href;
 }
-function SmartNavLink({ href, children, ...rest }) {
-  const resolved = resolveNavHref(href);
+function SmartNavLink({ href, label, children, ...rest }) {
+  /* a menu entry called «برندها» always opens the brands page */
+  const resolved = String(label || "").trim() === "برندها" ? "/brands" : resolveNavHref(href);
   if (resolved && resolved.startsWith("/") && !resolved.startsWith("//")) {
     return <Link to={resolved} {...rest}>{children}</Link>;
   }
@@ -754,7 +760,7 @@ function ProductVisual({ product, categories, palette, size = 128, fill, iconSca
   const src = hover && images[1] ? images[1] : images[0];
   return (
     <div className={fill ? "absolute inset-0 z-[3]" : "relative z-[3]"} style={fill ? undefined : { width: size, height: size }} onMouseEnter={() => setHover(true)} onMouseLeave={() => setHover(false)}>
-      <img src={src} alt={label} className="w-full h-full object-cover" loading="lazy" />
+      <img src={src} alt={label} className="w-full h-full object-contain" loading="lazy" draggable={false} />
     </div>
   );
 }
@@ -1429,6 +1435,14 @@ function Storefront({ products, categories, reviews, currencySettings, theme, la
     return Array.from(new Set([...(activeCategory.subcategories || []), ...fromProducts]));
   }, [activeCategory, products]);
   const activeBrand = brandSlug ? brands.find((b) => b.slug === brandSlug) || null : null;
+  const [brandTag, setBrandTag] = useState(null);
+  useEffect(() => { setBrandTag(null); }, [brandSlug]);
+  const brandTags = useMemo(() => {
+    if (!activeBrand) return [];
+    const seen = new Map();
+    products.filter((pr) => pr.brand === activeBrand.id).forEach((pr) => (pr.hashtags || []).forEach((h) => { const k = normalizeHashtag(h); if (k && !seen.has(k)) seen.set(k, h.replace(/^#+/, "")); }));
+    return Array.from(seen.entries());
+  }, [activeBrand, products]);
   const hashtagKey = hashtag ? normalizeHashtag(hashtag) : "";
 
   /* "Shop by Skin Concern" filter — independent of the category/tag
@@ -1665,7 +1679,7 @@ function Storefront({ products, categories, reviews, currencySettings, theme, la
 
           <nav className="hidden lg:flex items-center gap-8" style={{ fontSize: 14 }}>
             {header.navLinks.map((l) => (
-              <SmartNavLink key={l.label} href={l.href} className="hover:opacity-60 transition-opacity" style={{ color: isTransparentHero ? palette.white : palette.inkSoft }}>{l.label}</SmartNavLink>
+              <SmartNavLink key={l.label} href={l.href} label={l.label} className="hover:opacity-60 transition-opacity" style={{ color: isTransparentHero ? palette.white : palette.inkSoft }}>{l.label}</SmartNavLink>
             ))}
           </nav>
 
@@ -1713,7 +1727,7 @@ function Storefront({ products, categories, reviews, currencySettings, theme, la
             {!user && (
               <button onClick={onGoAuth} className="self-start rounded-full px-4 py-2 text-xs font-medium mb-1" style={{ background: palette.sageDeep, color: palette.white }}>ورود / ثبت‌نام</button>
             )}
-            {header.navLinks.map((l) => <SmartNavLink key={l.label} href={l.href} onClick={() => setMenuOpen(false)} className="py-1.5 text-sm" style={{ color: palette.inkSoft }}>{l.label}</SmartNavLink>)}
+            {header.navLinks.map((l) => <SmartNavLink key={l.label} href={l.href} label={l.label} onClick={() => setMenuOpen(false)} className="py-1.5 text-sm" style={{ color: palette.inkSoft }}>{l.label}</SmartNavLink>)}
           </nav>
         )}
       </header>
@@ -1808,15 +1822,14 @@ function Storefront({ products, categories, reviews, currencySettings, theme, la
         {categories.length === 0 ? (
           <EmptyState icon={Layers} title="هنوز دسته‌بندی‌ای اضافه نشده است" subtitle="دسته‌بندی‌های فروشگاه به‌زودی از پنل مدیریت اضافه می‌شوند." palette={palette} />
         ) : (
-          <div className="columns-2 md:columns-3 gap-4 md:gap-5">
-            {categories.map((c, i) => {
+          <div className={`grid ${CATEGORY_COLS_CLASS[`${layout.categoryMobileCols || 2}-${layout.categoryDesktopCols || 3}`] || "grid-cols-2 md:grid-cols-3"} gap-4 md:gap-5`}>
+            {[...categories].sort((a, b) => (a.order || 0) - (b.order || 0)).map((c, i) => {
               const Icon = resolveCategoryIcon(c.icon);
-              /* asymmetric rhythm: heights and vertical offsets cycle so tiles
-                 never line up into a uniform grid, giving the editorial-gallery feel */
-              const heightClass = ["h-56", "h-72", "h-64", "h-80", "h-60"][i % 5];
-              const offsetClass = i % 3 === 1 ? "md:mt-10" : i % 3 === 2 ? "md:mt-4" : "md:mt-0";
+              /* uniform tile height so every row lines up; the number of
+                 columns is chosen by the admin (Customizer → layout) */
+              const heightClass = "h-44 md:h-56";
               return (
-                <div key={c.id} className={`break-inside-avoid mb-4 md:mb-5 ${offsetClass}`}>
+                <div key={c.id}>
                   <Reveal delay={i * 0.06}>
                     <button onClick={() => { setFilter("همه"); if (c.slug) { navigate("/category/" + encodeURIComponent(c.slug)); } else { setActiveCategoryId(c.id); document.getElementById("shop")?.scrollIntoView({ behavior: "smooth" }); } }}
                       className={`group relative w-full ${heightClass} rounded-3xl overflow-hidden flex flex-col items-center justify-center gap-3 border transition-all duration-500 hover:-translate-y-1.5`}
@@ -1890,13 +1903,13 @@ function Storefront({ products, categories, reviews, currencySettings, theme, la
             {list.map((p, i) => (
               <Reveal key={p.id} delay={i * 0.04} className="snap-start shrink-0" >
                 <div className="product-card group rounded-3xl overflow-hidden border flex flex-col" style={{ width: "min(78vw, 300px)", borderColor: palette.beige, background: palette.white, "--glow": `${palette.bronze}4D` }}>
-                  <div className="relative flex items-center justify-center overflow-hidden" style={{ height: 260, background: palette.creamDeep }}>
+                  <Link to={`/product/${p.id}`} draggable={false} aria-label={p.name} className="relative flex items-center justify-center overflow-hidden" style={{ height: 260, background: palette.creamDeep }}>
                     <div className="product-lifestyle absolute inset-0 opacity-0 group-hover:opacity-100" style={{ background: `radial-gradient(circle at 60% 30%, ${palette.nudeDeep}55, ${palette.bronze}33 45%, transparent 75%)` }} />
                     <ProductVisual product={p} categories={categories} palette={palette} size={172} fill={getProductImages(p).length > 0} iconScaleClass="scale-150" />
-                  </div>
+                  </Link>
                   <div className="p-5 flex flex-col flex-1">
                     {p.tag && <span className="inline-flex items-center gap-1 rounded-full px-2.5 py-1 text-[10.5px] font-medium mb-2 self-start" style={{ background: `${palette.bronze}22`, color: palette.bronze, boxShadow: `0 0 14px ${palette.bronze}33` }}><Sparkles size={10} />{p.tag}</span>}
-                    <h3 style={{ ...fontDisplay, fontSize: 19, color: palette.ink }} className="mb-3 flex-1">{p.name}</h3>
+                    <Link to={`/product/${p.id}`} draggable={false} className="mb-3 flex-1 hover:opacity-70 transition-opacity block"><h3 style={{ ...fontDisplay, fontSize: 19, color: palette.ink, margin: 0 }}>{p.name}</h3></Link>
                     <div className="flex items-center justify-between gap-2">
                       <span style={{ ...fontDisplay, fontSize: 16, color: palette.ink }}>{fmt(p.salePrice || p.price)}</span>
                       <button onClick={() => addToCart(p.id)} className="rounded-full px-4 py-2 text-xs font-medium" style={{ background: addedFlash === p.id ? palette.sage : palette.ink, color: palette.white }}>
@@ -2140,7 +2153,7 @@ function Storefront({ products, categories, reviews, currencySettings, theme, la
                   return (
                     <Reveal key={p.id} delay={(i % 4) * 0.06}>
                       <div className="product-card group rounded-3xl overflow-hidden border flex flex-col h-full" style={{ borderColor: palette.beige, background: palette.white, "--glow": `${palette.bronze}4D` }}>
-                        <div className="relative p-6 flex items-center justify-center overflow-hidden" style={{ background: palette.creamDeep }}>
+                        <div className={`relative flex items-center justify-center overflow-hidden ${getProductImages(p).length > 0 ? "" : "p-6"}`} style={{ background: palette.creamDeep, aspectRatio: getProductImages(p).length > 0 ? "1 / 1" : undefined }}>
                           <div className="product-lifestyle absolute inset-0 opacity-0 group-hover:opacity-100" style={{ background: `radial-gradient(circle at 60% 30%, ${palette.nudeDeep}55, ${palette.bronze}33 45%, transparent 75%)` }} />
                           {p.skin && <span className="absolute top-3 right-3 z-10 rounded-full px-2.5 py-1 text-[10px] font-medium" style={{ background: palette.white, color: palette.sageDeep }}>{p.skin}</span>}
                           {layout.showWishlist && (
@@ -2161,6 +2174,11 @@ function Storefront({ products, categories, reviews, currencySettings, theme, la
                         <div className="p-5 flex flex-col flex-1">
                           {p.tag && <span className="inline-flex items-center gap-1 rounded-full px-2.5 py-1 text-[10.5px] font-medium mb-2 self-start" style={{ background: `${palette.bronze}22`, color: palette.bronze, boxShadow: `0 0 14px ${palette.bronze}33` }}><Sparkles size={10} />{p.tag}</span>}
                           <Link to={`/product/${p.id}`} style={{ ...fontDisplay, fontSize: 18, color: palette.ink }} className="mb-2 flex-1 hover:opacity-70 transition-opacity block"><h3 style={{ margin: 0, fontSize: "inherit", fontFamily: "inherit", fontWeight: "inherit", color: "inherit" }}>{p.name}</h3></Link>
+                          {(p.hashtags || []).length > 0 && (
+                            <div className="flex flex-wrap gap-1.5 mb-2">
+                              {p.hashtags.slice(0, 4).map((h) => <Link key={h} to={`/hashtag/${encodeURIComponent(h.replace(/^#+/, ""))}`} className="text-[11px] hover:opacity-70" style={{ color: palette.sageDeep }}>#{h.replace(/^#+/, "")}</Link>)}
+                            </div>
+                          )}
                           {layout.showRatings && p.reviews > 0 && (
                             <div className="flex items-center gap-1.5 mb-2">
                               <Stars rating={p.rating} color={palette.bronze} />
@@ -2365,9 +2383,12 @@ function Storefront({ products, categories, reviews, currencySettings, theme, la
               <button type="submit" className="sm:col-span-2 rounded-full px-6 py-3.5 text-sm font-medium flex items-center justify-center gap-2" style={{ background: palette.sageDeep, color: palette.white }}>ارسال پیام <Send size={15} style={{ transform: "scaleX(-1)" }} /></button>
             </form>
           )}
-          <div className="grid grid-cols-3 gap-4 mt-9">
-            {[[Mail, footer.contactEmail], [Phone, footer.contactPhone], [Clock, "شنبه تا چهارشنبه، ۹ تا ۱۸"]].map(([Icon, label]) => (
-              <div key={label} className="flex flex-col items-start gap-2"><Icon size={16} style={{ color: palette.sageDeep }} /><p style={{ fontSize: 12, color: palette.inkSoft }}>{label}</p></div>
+          <div className="flex flex-col gap-3.5 mt-9">
+            {[[Mail, footer.contactEmail, true], [Phone, footer.contactPhone, true], [Clock, "شنبه تا چهارشنبه، ۹ تا ۱۸", false]].map(([Icon, label, ltr]) => (
+              <div key={label} className="flex items-start gap-3 min-w-0">
+                <Icon size={16} className="shrink-0 mt-0.5" style={{ color: palette.sageDeep }} />
+                <p dir={ltr ? "ltr" : undefined} style={{ fontSize: 13, color: palette.inkSoft, textAlign: ltr ? "left" : undefined, unicodeBidi: ltr ? "isolate" : undefined, overflowWrap: "anywhere" }} className="min-w-0">{label}</p>
+              </div>
             ))}
           </div>
           <div className="flex items-center gap-2 mt-4"><MapPin size={16} style={{ color: palette.sageDeep }} /><p style={{ fontSize: 12, color: palette.inkSoft }}>{footer.contactAddress}</p></div>
@@ -2436,7 +2457,7 @@ function Storefront({ products, categories, reviews, currencySettings, theme, la
           <BrandsIndexContent brands={brands} products={products} palette={palette} fontDisplay={fontDisplay} />
         ) : brandSlug ? (
           activeBrand ? sectionRenderers.shop({
-            list: products.filter((p) => p.brand === activeBrand.id),
+            list: products.filter((p) => p.brand === activeBrand.id && (!brandTag || (p.hashtags || []).some((h) => normalizeHashtag(h) === brandTag))),
             kicker: "برند",
             heading: activeBrand.name,
             emptyTitle: "هنوز محصولی برای این برند ثبت نشده است",
@@ -2444,6 +2465,12 @@ function Storefront({ products, categories, reviews, currencySettings, theme, la
               <div className="mt-3 flex flex-col gap-3">
                 {activeBrand.logo && <img src={activeBrand.logo} alt={activeBrand.name} className="h-16 w-auto object-contain rounded-xl" />}
                 {activeBrand.description && <p style={{ color: palette.inkSoft, fontSize: 14, lineHeight: 1.9 }} className="max-w-xl">{activeBrand.description}</p>}
+                {brandTags.length > 0 && (
+                  <div className="flex flex-wrap gap-2">
+                    <button onClick={() => setBrandTag(null)} className="rounded-full px-3.5 py-1.5 text-xs" style={{ background: !brandTag ? palette.sageDeep : palette.white, color: !brandTag ? palette.white : palette.inkSoft, border: `1px solid ${palette.beige}` }}>همه</button>
+                    {brandTags.map(([k, label]) => <button key={k} onClick={() => setBrandTag(brandTag === k ? null : k)} className="rounded-full px-3.5 py-1.5 text-xs" style={{ background: brandTag === k ? palette.sageDeep : palette.white, color: brandTag === k ? palette.white : palette.inkSoft, border: `1px solid ${palette.beige}` }}>#{label}</button>)}
+                  </div>
+                )}
                 <Link to="/brands" className="self-start inline-flex items-center gap-1.5 rounded-full px-3.5 py-1.5 text-xs font-medium border" style={{ borderColor: palette.beige, color: palette.inkSoft }}>همه‌ی برندها</Link>
               </div>
             ),
@@ -2531,13 +2558,13 @@ function Storefront({ products, categories, reviews, currencySettings, theme, la
             <div>
               <p style={{ fontSize: 12 }} className="mb-4 text-white/70">{footer.col2Title}</p>
               <div className="flex flex-col gap-2.5 text-sm" style={{ color: "#C9C2B6" }}>
-                {footer.col2Links.map((l) => <SmartNavLink key={l.label} href={l.href} className="hover:text-white transition-colors">{l.label}</SmartNavLink>)}
+                {footer.col2Links.map((l) => <SmartNavLink key={l.label} href={l.href} label={l.label} className="hover:text-white transition-colors">{l.label}</SmartNavLink>)}
               </div>
             </div>
             <div>
               <p style={{ fontSize: 12 }} className="mb-4 text-white/70">{footer.col3Title}</p>
               <div className="flex flex-col gap-2.5 text-sm" style={{ color: "#C9C2B6" }}>
-                {footer.col3Links.map((l) => <SmartNavLink key={l.label} href={l.href} className="hover:text-white transition-colors">{l.label}</SmartNavLink>)}
+                {footer.col3Links.map((l) => <SmartNavLink key={l.label} href={l.href} label={l.label} className="hover:text-white transition-colors">{l.label}</SmartNavLink>)}
               </div>
             </div>
           </div>
@@ -4874,6 +4901,14 @@ function LayoutSubTab({ layout, setLayout, homeSections, setHomeSections, sectio
           </div>
           <div><FieldLabel palette={p}>تعداد ستون در موبایل</FieldLabel>
             <div className="flex gap-2">{[1, 2].map((n) => <button key={n} onClick={() => setLayout({ ...layout, mobileCols: n })} className="flex-1 rounded-xl py-2 text-sm font-medium border" style={{ background: layout.mobileCols === n ? p.sageDeep : p.white, color: layout.mobileCols === n ? p.white : p.inkSoft, borderColor: layout.mobileCols === n ? p.sageDeep : p.beige }}>{n}</button>)}</div>
+          </div>
+        </div>
+        <div className="grid sm:grid-cols-2 gap-4 mb-4">
+          <div><FieldLabel palette={p}>ستون دسته‌بندی‌ها در دسکتاپ</FieldLabel>
+            <div className="flex gap-2">{[2, 3, 4, 5].map((n) => <button key={n} onClick={() => setLayout({ ...layout, categoryDesktopCols: n })} className="flex-1 rounded-xl py-2 text-sm font-medium border" style={{ background: (layout.categoryDesktopCols || 3) === n ? p.sageDeep : p.white, color: (layout.categoryDesktopCols || 3) === n ? p.white : p.inkSoft, borderColor: (layout.categoryDesktopCols || 3) === n ? p.sageDeep : p.beige }}>{n}</button>)}</div>
+          </div>
+          <div><FieldLabel palette={p}>ستون دسته‌بندی‌ها در موبایل</FieldLabel>
+            <div className="flex gap-2">{[1, 2, 3].map((n) => <button key={n} onClick={() => setLayout({ ...layout, categoryMobileCols: n })} className="flex-1 rounded-xl py-2 text-sm font-medium border" style={{ background: (layout.categoryMobileCols || 2) === n ? p.sageDeep : p.white, color: (layout.categoryMobileCols || 2) === n ? p.white : p.inkSoft, borderColor: (layout.categoryMobileCols || 2) === n ? p.sageDeep : p.beige }}>{n}</button>)}</div>
           </div>
         </div>
         <div><FieldLabel palette={p}>تعداد محصولات نمایش‌داده‌شده (پیش از «نمایش بیشتر»)</FieldLabel>
