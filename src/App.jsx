@@ -704,13 +704,30 @@ function resolveNavHref(href) {
   if (legacyMatch) return `/${legacyMatch[1]}/${legacyMatch[2]}`;
   return href;
 }
-function SmartNavLink({ href, label, children, ...rest }) {
+function SmartNavLink({ href, label, children, onClick, ...rest }) {
   /* a menu entry called «برندها» always opens the brands page */
   const resolved = String(label || "").trim() === "برندها" ? "/brands" : resolveNavHref(href);
-  if (resolved && resolved.startsWith("/") && !resolved.startsWith("//")) {
-    return <Link to={resolved} {...rest}>{children}</Link>;
+  const navigate = useNavigate();
+  const location = useLocation();
+  /* Section anchors (#shop, #contact, …) only exist on the homepage.
+     Clicking one from a product/brand/category/page route used to do
+     nothing — the browser tried to jump to an id that isn't on the
+     current page. Now it first goes home, then scrolls to that
+     section once it has rendered. */
+  if (resolved && resolved.startsWith("#") && !resolved.startsWith("#/")) {
+    const targetId = resolved.slice(1);
+    const goToAnchor = (e) => {
+      e.preventDefault();
+      const scrollToIt = () => document.getElementById(targetId)?.scrollIntoView({ behavior: "smooth", block: "start" });
+      if (location.pathname !== "/") { navigate("/"); setTimeout(scrollToIt, 80); } else { scrollToIt(); }
+      onClick?.(e);
+    };
+    return <a href={resolved} onClick={goToAnchor} {...rest}>{children}</a>;
   }
-  return <a href={resolved} {...rest}>{children}</a>;
+  if (resolved && resolved.startsWith("/") && !resolved.startsWith("//")) {
+    return <Link to={resolved} onClick={onClick} {...rest}>{children}</Link>;
+  }
+  return <a href={resolved} onClick={onClick} {...rest}>{children}</a>;
 }
 
 function Bottle({ tint, ink, white, label }) {
@@ -1669,12 +1686,12 @@ function Storefront({ products, categories, reviews, currencySettings, theme, la
               <Menu size={22} color={isTransparentHero ? palette.white : palette.ink} />
             </button>
             {!isCenteredLogo && (
-              <a href="#home" style={{ fontFamily: theme.logoFont, fontWeight: 600, letterSpacing: "0.14em", color: isTransparentHero ? palette.white : palette.ink }} className="text-2xl md:text-3xl">VIINA</a>
+              <Link to="/" style={{ fontFamily: theme.logoFont, fontWeight: 600, letterSpacing: "0.14em", color: isTransparentHero ? palette.white : palette.ink }} className="text-2xl md:text-3xl">VIINA</Link>
             )}
           </div>
 
           {isCenteredLogo && (
-            <a href="#home" style={{ fontFamily: theme.logoFont, fontWeight: 600, letterSpacing: "0.14em", color: palette.ink }} className="text-2xl md:text-3xl absolute left-1/2 -translate-x-1/2 hidden md:block">VIINA</a>
+            <Link to="/" style={{ fontFamily: theme.logoFont, fontWeight: 600, letterSpacing: "0.14em", color: palette.ink }} className="text-2xl md:text-3xl absolute left-1/2 -translate-x-1/2 hidden md:block">VIINA</Link>
           )}
 
           <nav className="hidden lg:flex items-center gap-8" style={{ fontSize: 14 }}>
