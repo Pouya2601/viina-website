@@ -277,6 +277,7 @@ const FAQS_DEFAULT = [
   { q: "آیا می‌توانم سفارشم را پیگیری کنم؟", a: "به‌محض ارسال سفارش، لینک رهگیری از طریق ایمیل برای شما ارسال می‌شود و می‌توانید وضعیت را هر زمان از حساب کاربری خود بررسی کنید." },
 ];
 const HERO_CMS_DEFAULT = {
+  kicker: "گیاهی · مبتنی بر علم · گلچین‌شده با دقت",
   headline: "پوست خود را با ظرافتی ناب پرورش دهید",
   subtitle: "گیاهان ارگانیک، پشتیبانی‌شده با تحقیقات پوستی. هر قلم از کالکشن وینا برای بازگرداندن تعادل طبیعی پوست شما دستچین شده.",
   ctaText: "مشاهده محصولات", ctaLink: "#shop", bgImage: "", imageWidth: 420, imageHeight: 420,
@@ -933,7 +934,7 @@ function WelcomeModal({ config, theme, onDismiss }) {
         <div className="relative z-10 flex flex-col items-center text-center px-8 pt-14 pb-10">
           {/* configurable image, or the 3D-styled droplet + glass bottle mascot as fallback */}
           {config.image ? (
-            <div className="mb-7"><AnimatedHeroImage src={config.image} width={config.imageWidth} height={config.imageHeight} palette={palette} rounded="1.75rem" /></div>
+            <div className="mb-7"><AnimatedHeroImage src={config.image} width={config.imageWidth} height={config.imageHeight} palette={palette} rounded="1.75rem" fit="contain" /></div>
           ) : (
             <div className="relative mb-7" style={{ width: 132, height: 132, animation: "mascotFloat 5s ease-in-out infinite" }}>
               <div className="pointer-events-none absolute inset-0 rounded-full" style={{ background: `radial-gradient(circle, ${palette.sage}55, transparent 68%)`, filter: "blur(18px)" }} />
@@ -1374,7 +1375,7 @@ function GlowCompareSlider({ palette, beforeImage, afterImage, beforeLabel, afte
    subtle scroll-linked micro-rotation, and a slow diagonal shimmer sweep —
    applied to whatever image the admin uploads (keyframes live in the
    Storefront-level <style> block: float-slow, auraPulse, shimmerSweep) */
-function AnimatedHeroImage({ src, width = 420, height = 420, palette, rounded = "2rem", alt = `${BRAND_NAME} — محصولات مراقبت پوستی لوکس` }) {
+function AnimatedHeroImage({ src, width = 420, height = 420, palette, rounded = "2rem", alt = `${BRAND_NAME} — محصولات مراقبت پوستی لوکس`, fit = "cover" }) {
   const scrollOffset = useParallax(0.05);
   if (!src) return null;
   const w = Math.max(80, Math.min(Number(width) || 420, 720));
@@ -1385,7 +1386,7 @@ function AnimatedHeroImage({ src, width = 420, height = 420, palette, rounded = 
       <div style={{ transform: `rotate(${scrollOffset * 0.06}deg)`, transition: "transform 0.15s linear", width: "100%", height: "100%" }}>
         <div className="float-slow" style={{ width: "100%", height: "100%" }}>
           <div className="relative overflow-hidden w-full h-full" style={{ borderRadius: rounded, boxShadow: `0 30px 80px -20px ${palette.ink}45`, border: `1px solid ${palette.white}80` }}>
-            <img src={src} alt={alt} className="w-full h-full object-cover" />
+            <img src={src} alt={alt} className={`w-full h-full ${fit === "contain" ? "object-contain p-4" : "object-cover"}`} style={fit === "contain" ? { background: `${palette.creamDeep}` } : undefined} />
             <div className="pointer-events-none absolute inset-0" style={{ background: `linear-gradient(115deg, transparent 40%, ${palette.white}66 50%, transparent 60%)`, backgroundSize: "250% 250%", animation: "shimmerSweep 5.5s ease-in-out infinite" }} />
           </div>
         </div>
@@ -1755,9 +1756,9 @@ function Storefront({ products, categories, reviews, currencySettings, theme, la
   /* Lets any homepage section's kicker/heading text be overridden from
      the admin's "چیدمان و نمایش" tab (sectionCopy[key]) without a code
      change; empty override fields fall back to the built-in default. */
-  function secText(key, defaultKicker, defaultHeading) {
+  function secText(key, defaultKicker, defaultHeading, defaultDescription = "") {
     const override = (sectionCopy && sectionCopy[key]) || {};
-    return { kicker: override.kicker || defaultKicker, heading: override.heading || defaultHeading };
+    return { kicker: override.kicker || defaultKicker, heading: override.heading || defaultHeading, description: override.description || defaultDescription };
   }
   const sectionRenderers = {
     hero: () => (
@@ -1778,7 +1779,7 @@ function Storefront({ products, categories, reviews, currencySettings, theme, la
         <div className={`relative max-w-7xl mx-auto px-5 md:px-8 pb-16 md:pb-24 grid lg:grid-cols-2 gap-10 items-center ${isTransparentHero ? "pt-32 md:pt-40" : "pt-14 md:pt-20"}`}>
           <Reveal>
             <span className="inline-flex items-center gap-2 rounded-full px-4 py-2 mb-5 backdrop-blur-md" style={{ background: `${palette.white}66`, border: `1px solid ${palette.white}90`, color: palette.sageDeep, fontSize: 13, fontWeight: 600 }}>
-              <Droplet size={13} /> گیاهی · مبتنی بر علم · گلچین‌شده با دقت
+              <Droplet size={13} /> {header.heroKicker || "گیاهی · مبتنی بر علم · گلچین‌شده با دقت"}
             </span>
             <h1 style={{ ...fontDisplay, fontWeight: 500, lineHeight: 1.35, color: palette.ink }} className="text-4xl md:text-5xl xl:text-6xl mb-6">
               {header.heroHeadline || ""}
@@ -1835,6 +1836,7 @@ function Storefront({ products, categories, reviews, currencySettings, theme, la
         <RevealHeading className="mb-10 md:mb-14 max-w-xl">
           <p style={{ color: palette.sageDeep, fontSize: 13, fontWeight: 600 }} className="mb-3">{t.kicker}</p>
           <h2 style={{ ...fontDisplay, fontWeight: 500, color: palette.ink }} className="text-3xl md:text-4xl">{t.heading}</h2>
+          {t.description && <div className="mt-4">{t.description.split("\n").filter(Boolean).map((line, i) => <p key={i} style={{ color: palette.inkSoft, fontSize: 15, lineHeight: 1.9 }}>{line}</p>)}</div>}
         </RevealHeading>
         {categories.length === 0 ? (
           <EmptyState icon={Layers} title="هنوز دسته‌بندی‌ای اضافه نشده است" subtitle="دسته‌بندی‌های فروشگاه به‌زودی از پنل مدیریت اضافه می‌شوند." palette={palette} />
@@ -2245,7 +2247,9 @@ function Storefront({ products, categories, reviews, currencySettings, theme, la
       </section>
     ); },
     about: () => {
-      const t = secText("about", "فلسفه ما", "گلچین‌شده با دقت و صبر");
+      const t = secText("about", "فلسفه ما", "گلچین‌شده با دقت و صبر", "وینا از یک دغدغه ساده شروع شد: بازاریابی محصولات پوستی جلوتر از علم آن‌ها حرکت می‌کرد. وینا فروشگاه تخصصی محصولات مراقبت پوستی است؛ تیم ما در کنار متخصصان پوست، معتبرترین برندهای دنیا را با کمترین و هدفمندترین ترکیبات برای شما گلچین می‌کند.\nموجودی هر محصول در مقیاس محدود تأمین می‌شود، تا آنچه دریافت می‌کنید همیشه تازه و اصل باشد.");
+      const aboutBadges = (about.badges && about.badges.length > 0) ? about.badges : ["موجودی محدود", "تست‌شده توسط متخصص پوست", "بدون آزمایش حیوانی"];
+      const aboutBadgeIcons = [Leaf, ShieldCheck, Heart];
       return (
       <section id="about" key="about" className="relative max-w-7xl mx-auto px-5 md:px-8 py-16 md:py-24 grid lg:grid-cols-2 gap-12 items-center overflow-hidden">
         {[
@@ -2258,15 +2262,14 @@ function Storefront({ products, categories, reviews, currencySettings, theme, la
         <Reveal className={about.hideImage ? "lg:col-span-2" : "order-2 lg:order-1"}>
           <p style={{ color: palette.sageDeep, fontSize: 13, fontWeight: 600 }} className="mb-3">{t.kicker}</p>
           <h2 style={{ ...fontDisplay, fontWeight: 500, color: palette.ink }} className="text-3xl md:text-4xl mb-5">{t.heading}</h2>
-          <p style={{ color: palette.inkSoft, fontSize: 16, lineHeight: 1.95 }} className="mb-5">وینا از یک دغدغه ساده شروع شد: بازاریابی محصولات پوستی جلوتر از علم آن‌ها حرکت می‌کرد. وینا فروشگاه تخصصی محصولات مراقبت پوستی است؛ تیم ما در کنار متخصصان پوست، معتبرترین برندهای دنیا را با کمترین و هدفمندترین ترکیبات برای شما گلچین می‌کند.</p>
-          <p style={{ color: palette.inkSoft, fontSize: 16, lineHeight: 1.95 }} className="mb-8">موجودی هر محصول در مقیاس محدود تأمین می‌شود، تا آنچه دریافت می‌کنید همیشه تازه و اصل باشد.</p>
+          {t.description.split("\n").filter(Boolean).map((line, i, arr) => <p key={i} style={{ color: palette.inkSoft, fontSize: 16, lineHeight: 1.95 }} className={i === arr.length - 1 ? "mb-8" : "mb-5"}>{line}</p>)}
           <div className="grid grid-cols-3 gap-4">
-            {[["موجودی محدود", Leaf], ["تست‌شده توسط متخصص پوست", ShieldCheck], ["بدون آزمایش حیوانی", Heart]].map(([label, Icon]) => (
-              <div key={label} className="text-center">
+            {aboutBadges.map((label, i) => { const Icon = aboutBadgeIcons[i] || Sparkles; return (
+              <div key={label + i} className="text-center">
                 <Icon size={20} className="mx-auto mb-2" style={{ color: palette.sageDeep }} />
                 <p style={{ fontSize: 12, color: palette.inkSoft }}>{label}</p>
               </div>
-            ))}
+            ); })}
           </div>
         </Reveal>
         {!about.hideImage && (
@@ -2631,8 +2634,8 @@ function Storefront({ products, categories, reviews, currencySettings, theme, la
       {quizOpen && quizQuestions && quizQuestions.length > 0 && (
         <div className="fixed inset-0 z-[70] flex items-center justify-center p-4">
           <div className="absolute inset-0 backdrop-blur-sm" style={{ background: `${palette.ink}88` }} onClick={() => setQuizOpen(false)} />
-          <div className="relative w-full max-w-lg rounded-3xl overflow-hidden backdrop-blur-xl border" style={{ background: `${palette.white}E6`, borderColor: `${palette.white}90`, boxShadow: `0 50px 120px -24px ${palette.ink}55` }}>
-            <div className="flex items-center justify-between px-6 py-5 border-b" style={{ borderColor: palette.beige }}>
+          <div className="relative w-full max-w-lg max-h-[88vh] overflow-y-auto overflow-x-hidden overscroll-contain rounded-3xl backdrop-blur-xl border" style={{ background: `${palette.white}E6`, borderColor: `${palette.white}90`, boxShadow: `0 50px 120px -24px ${palette.ink}55` }}>
+            <div className="sticky top-0 z-10 flex items-center justify-between px-6 py-5 border-b backdrop-blur-xl" style={{ borderColor: palette.beige, background: `${palette.white}E6` }}>
               <p style={{ ...fontDisplay, fontSize: 19, color: palette.ink }}>مشاور هوشمند پوست</p>
               <button onClick={() => setQuizOpen(false)} aria-label="بستن"><X size={19} color={palette.ink} /></button>
             </div>
@@ -4703,6 +4706,7 @@ function ContentTab({ hero, setHero, banner, setBanner, faqs, setFaqs, welcomeMo
       <div className="rounded-3xl p-6" style={{ background: p.white, border: `1px solid ${p.beige}` }}>
         <p style={{ fontFamily: "'Noto Serif Arabic', serif", fontSize: 17, color: p.ink }} className="mb-4">بخش هیرو (صفحه اصلی)</p>
         <form onSubmit={(e) => { e.preventDefault(); setSaved(true); }} className="flex flex-col gap-4">
+          <div><FieldLabel palette={p}>متن کوچک بالای عنوان (kicker)</FieldLabel><TextInput palette={p} value={hero.kicker || ""} onChange={(e) => setHero({ ...hero, kicker: e.target.value })} placeholder="گیاهی · مبتنی بر علم · گلچین‌شده با دقت" /></div>
           <div><FieldLabel palette={p}>عنوان اصلی</FieldLabel><TextInput palette={p} value={hero.headline} onChange={(e) => setHero({ ...hero, headline: e.target.value })} /></div>
           <div><FieldLabel palette={p}>زیرعنوان</FieldLabel><TextArea palette={p} rows={2} value={hero.subtitle} onChange={(e) => setHero({ ...hero, subtitle: e.target.value })} /></div>
           <div className="grid grid-cols-2 gap-4">
@@ -4756,6 +4760,15 @@ function ContentTab({ hero, setHero, banner, setBanner, faqs, setFaqs, welcomeMo
         {!about.hideImage && (
           <div className="mt-3"><ImageUploadField value={about.image} onChange={(url) => setAbout({ ...about, image: url })} placeholder="آدرس تصویر یا آپلود مستقیم" /></div>
         )}
+        <p style={{ fontSize: 12, color: p.inkSoft }} className="mt-4 mb-2">متن این بخش (عنوان و توضیحات) از تب «شخصی‌سازی سایت ← چیدمان» قابل ویرایش است. سه نشان زیر متن هم از همین‌جا قابل تغییر است:</p>
+        <div className="grid sm:grid-cols-3 gap-3">
+          {[0, 1, 2].map((i) => (
+            <div key={i}>
+              <FieldLabel palette={p}>نشان {i + 1}</FieldLabel>
+              <TextInput palette={p} value={(about.badges && about.badges[i]) || ["موجودی محدود", "تست‌شده توسط متخصص پوست", "بدون آزمایش حیوانی"][i]} onChange={(e) => { const next = [...((about.badges && about.badges.length === 3) ? about.badges : ["موجودی محدود", "تست‌شده توسط متخصص پوست", "بدون آزمایش حیوانی"])]; next[i] = e.target.value; setAbout({ ...about, badges: next }); }} />
+            </div>
+          ))}
+        </div>
       </div>
 
       <div className="rounded-3xl p-6" style={{ background: p.white, border: `1px solid ${p.beige}` }}>
@@ -4964,14 +4977,20 @@ function LayoutSubTab({ layout, setLayout, homeSections, setHomeSections, sectio
                 <button onClick={() => toggleSection(i)} aria-label={s.visible ? "پنهان کردن بخش" : "نمایش بخش"}><Eye size={16} color={s.visible ? p.sageDeep : p.inkSoft} /></button>
               </div>
               {editable && editingKey === s.key && (
-                <div className="px-4 pb-4 grid sm:grid-cols-2 gap-3">
-                  <div>
-                    <FieldLabel palette={p}>متن کوچک (kicker)</FieldLabel>
-                    <TextInput palette={p} value={copy.kicker || ""} onChange={(e) => updateCopy(s.key, "kicker", e.target.value)} placeholder="خالی = پیش‌فرض" className="!bg-white" />
+                <div className="px-4 pb-4 flex flex-col gap-3">
+                  <div className="grid sm:grid-cols-2 gap-3">
+                    <div>
+                      <FieldLabel palette={p}>متن کوچک (kicker)</FieldLabel>
+                      <TextInput palette={p} value={copy.kicker || ""} onChange={(e) => updateCopy(s.key, "kicker", e.target.value)} placeholder="خالی = پیش‌فرض" className="!bg-white" />
+                    </div>
+                    <div>
+                      <FieldLabel palette={p}>عنوان اصلی</FieldLabel>
+                      <TextInput palette={p} value={copy.heading || ""} onChange={(e) => updateCopy(s.key, "heading", e.target.value)} placeholder="خالی = پیش‌فرض" className="!bg-white" />
+                    </div>
                   </div>
                   <div>
-                    <FieldLabel palette={p}>عنوان اصلی</FieldLabel>
-                    <TextInput palette={p} value={copy.heading || ""} onChange={(e) => updateCopy(s.key, "heading", e.target.value)} placeholder="خالی = پیش‌فرض" className="!bg-white" />
+                    <FieldLabel palette={p}>توضیحات (اختیاری — هر خط یک پاراگراف)</FieldLabel>
+                    <TextArea palette={p} rows={3} value={copy.description || ""} onChange={(e) => updateCopy(s.key, "description", e.target.value)} placeholder="خالی = پیش‌فرض" className="!bg-white" />
                   </div>
                 </div>
               )}
@@ -6122,7 +6141,7 @@ function AppShell({ remoteContent }) {
   const [theme, setTheme] = useSyncedState("theme", remoteContent.theme ?? DEFAULT_THEME);
   const [layout, setLayout] = useSyncedState("layout", remoteContent.layout ?? DEFAULT_LAYOUT);
   const [homeSections, setHomeSections] = useSyncedState("homeSections", Array.isArray(remoteContent.homeSections) && remoteContent.homeSections.length > 0 ? remoteContent.homeSections : HOME_SECTIONS_DEFAULT);
-  const [header, setHeader] = useSyncedState("header", remoteContent.header ?? { ...DEFAULT_HEADER, heroHeadline: HERO_CMS_DEFAULT.headline, heroSubtitle: HERO_CMS_DEFAULT.subtitle, heroCtaText: HERO_CMS_DEFAULT.ctaText, heroCtaLink: HERO_CMS_DEFAULT.ctaLink, heroImage: HERO_CMS_DEFAULT.bgImage, heroImageWidth: HERO_CMS_DEFAULT.imageWidth, heroImageHeight: HERO_CMS_DEFAULT.imageHeight });
+  const [header, setHeader] = useSyncedState("header", remoteContent.header ?? { ...DEFAULT_HEADER, heroKicker: HERO_CMS_DEFAULT.kicker, heroHeadline: HERO_CMS_DEFAULT.headline, heroSubtitle: HERO_CMS_DEFAULT.subtitle, heroCtaText: HERO_CMS_DEFAULT.ctaText, heroCtaLink: HERO_CMS_DEFAULT.ctaLink, heroImage: HERO_CMS_DEFAULT.bgImage, heroImageWidth: HERO_CMS_DEFAULT.imageWidth, heroImageHeight: HERO_CMS_DEFAULT.imageHeight });
   const [announcement, setAnnouncement] = useSyncedState("announcement", remoteContent.announcement ?? DEFAULT_ANNOUNCEMENT);
   const [footer, setFooter] = useSyncedState("footer", remoteContent.footer ?? DEFAULT_FOOTER);
   const [banner, setBanner] = useSyncedState("banner", remoteContent.banner ?? DEFAULT_BANNER);
@@ -6194,7 +6213,7 @@ function AppShell({ remoteContent }) {
   function setHero(next) {
     const resolved = typeof next === "function" ? next(hero) : next;
     setHeroState(resolved);
-    setHeader((h) => ({ ...h, heroHeadline: resolved.headline, heroSubtitle: resolved.subtitle, heroCtaText: resolved.ctaText, heroCtaLink: resolved.ctaLink, heroImage: resolved.bgImage, heroImageWidth: resolved.imageWidth, heroImageHeight: resolved.imageHeight }));
+    setHeader((h) => ({ ...h, heroKicker: resolved.kicker, heroHeadline: resolved.headline, heroSubtitle: resolved.subtitle, heroCtaText: resolved.ctaText, heroCtaLink: resolved.ctaLink, heroImage: resolved.bgImage, heroImageWidth: resolved.imageWidth, heroImageHeight: resolved.imageHeight }));
   }
 
   const storefrontProps = {
