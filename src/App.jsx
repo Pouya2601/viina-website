@@ -195,7 +195,7 @@ const HOME_SECTIONS_DEFAULT = [
   { key: "hero", label: "بخش هیرو", visible: true },
   { key: "banner", label: "بنر تبلیغاتی", visible: true },
   { key: "bestsellers", label: "اسلایدر پرفروش‌ترین‌ها", visible: true },
-  { key: "categories", label: "دسته‌بندی‌ها (گالری نامتقارن)", visible: true },
+  { key: "categories", label: "دسته‌بندی‌ها (آیینی برای هر مرحله)", visible: true },
   { key: "concerns", label: "خرید بر اساس نیاز پوستی", visible: true },
   { key: "routine", label: "تکمیل روتین (Cleanser+Serum+Cream)", visible: true },
   { key: "bundles", label: "بسته‌های روتین کامل", visible: true },
@@ -934,7 +934,7 @@ function WelcomeModal({ config, theme, onDismiss }) {
         <div className="relative z-10 flex flex-col items-center text-center px-8 pt-14 pb-10">
           {/* configurable image, or the 3D-styled droplet + glass bottle mascot as fallback */}
           {config.image ? (
-            <div className="mb-7"><AnimatedHeroImage src={config.image} width={config.imageWidth} height={config.imageHeight} palette={palette} rounded="1.75rem" fit="contain" /></div>
+            <div className="mb-7"><AnimatedHeroImage src={config.image} width={config.imageWidth} height={config.imageHeight} palette={palette} rounded="1.75rem" fit="contain" square /></div>
           ) : (
             <div className="relative mb-7" style={{ width: 132, height: 132, animation: "mascotFloat 5s ease-in-out infinite" }}>
               <div className="pointer-events-none absolute inset-0 rounded-full" style={{ background: `radial-gradient(circle, ${palette.sage}55, transparent 68%)`, filter: "blur(18px)" }} />
@@ -1375,18 +1375,24 @@ function GlowCompareSlider({ palette, beforeImage, afterImage, beforeLabel, afte
    subtle scroll-linked micro-rotation, and a slow diagonal shimmer sweep —
    applied to whatever image the admin uploads (keyframes live in the
    Storefront-level <style> block: float-slow, auraPulse, shimmerSweep) */
-function AnimatedHeroImage({ src, width = 420, height = 420, palette, rounded = "2rem", alt = `${BRAND_NAME} — محصولات مراقبت پوستی لوکس`, fit = "cover" }) {
+function AnimatedHeroImage({ src, width = 420, height = 420, palette, rounded = "2rem", alt = `${BRAND_NAME} — محصولات مراقبت پوستی لوکس`, fit = "cover", square = false }) {
   const scrollOffset = useParallax(0.05);
   if (!src) return null;
   const w = Math.max(80, Math.min(Number(width) || 420, 720));
   const h = Math.max(80, Math.min(Number(height) || 420, 720));
+  /* `square` forces a true 1:1 box instead of the width/height admin
+     fields (those are meant for a wide hero banner). A non-square box
+     combined with object-contain used to letterbox the picture toward
+     one side instead of framing it evenly — this guarantees an even
+     margin on every side no matter what's typed into those fields. */
+  const boxStyle = square ? { width: "min(100%, " + w + "px)", aspectRatio: "1 / 1" } : { width: "min(100%, " + w + "px)", height: "min(78vw, " + h + "px)" };
   return (
-    <div className="relative flex items-center justify-center" style={{ width: "min(100%, " + w + "px)", height: "min(78vw, " + h + "px)" }}>
+    <div className="relative flex items-center justify-center mx-auto" style={boxStyle}>
       <div className="pointer-events-none absolute" style={{ inset: "-14%", borderRadius: rounded, background: `radial-gradient(circle, ${palette.sage}55, transparent 72%)`, filter: "blur(28px)", animation: "auraPulse 4.5s ease-in-out infinite" }} />
       <div style={{ transform: `rotate(${scrollOffset * 0.06}deg)`, transition: "transform 0.15s linear", width: "100%", height: "100%" }}>
         <div className="float-slow" style={{ width: "100%", height: "100%" }}>
-          <div className="relative overflow-hidden w-full h-full" style={{ borderRadius: rounded, boxShadow: `0 30px 80px -20px ${palette.ink}45`, border: `1px solid ${palette.white}80` }}>
-            <img src={src} alt={alt} className={`w-full h-full ${fit === "contain" ? "object-contain p-4" : "object-cover"}`} style={fit === "contain" ? { background: `${palette.creamDeep}` } : undefined} />
+          <div className="relative overflow-hidden w-full h-full flex items-center justify-center" style={{ borderRadius: rounded, boxShadow: `0 30px 80px -20px ${palette.ink}45`, border: `1px solid ${palette.white}80`, background: fit === "contain" ? palette.creamDeep : undefined }}>
+            <img src={src} alt={alt} className={`w-full h-full ${fit === "contain" ? "object-contain p-4" : "object-cover"}`} style={{ objectPosition: "center center" }} />
             <div className="pointer-events-none absolute inset-0" style={{ background: `linear-gradient(115deg, transparent 40%, ${palette.white}66 50%, transparent 60%)`, backgroundSize: "250% 250%", animation: "shimmerSweep 5.5s ease-in-out infinite" }} />
           </div>
         </div>
