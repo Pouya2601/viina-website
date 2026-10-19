@@ -260,6 +260,22 @@ const ORDER_STATUS_OPTIONS = ["در انتظار", "در حال پردازش", "
 const PAYMENT_STATUS_OPTIONS = ["پرداخت‌شده", "در انتظار", "ناموفق"];
 const REVIEW_STATUS_OPTIONS = ["تأیید شده", "در انتظار بررسی", "رد شده"];
 
+const PAYMENT_SETTINGS_DEFAULT = { bankName: "", cardNumber: "", cardHolder: "", note: "لطفاً پس از واریز، تصویر رسید را در همین صفحه آپلود کنید." };
+const NOTIFY_SETTINGS_DEFAULT = { webhookUrl: "" };
+/* Fire-and-forget: POSTs an event to the admin's own webhook URL (a
+   Supabase Edge Function, Make/Zapier scenario, or their SMS
+   provider's incoming webhook) so the actual sending of an SMS can
+   happen with that provider's secret key safely on their side — never
+   in this client-side code. Silently does nothing if no URL is set,
+   and never throws into the caller if the request fails. */
+async function sendNotification(url, payload) {
+  if (!url) return;
+  try {
+    await fetch(url, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ ...payload, sentAt: new Date().toISOString() }) });
+  } catch (err) {
+    console.error("VIINA: notification webhook failed", err);
+  }
+}
 const PAYMENT_METHODS_DEFAULT = ["کارت اعتباری (زرین‌پال)", "پی‌پال", "استرایپ", "اپل‌پی", "پرداخت در محل (COD)"];
 const SHIPPING_REGIONS_DEFAULT = [{ region: "داخل کشور", rate: 150000 }, { region: "بین‌المللی", rate: 900000 }];
 const NOTIFICATION_TEMPLATES_DEFAULT = [
@@ -3270,35 +3286,90 @@ function AuthPage({ theme, authSettings, onLogin, onBack }) {
    clearly-labeled simulated payment step (same honesty note as the
    admin panel's payment settings).
 ================================================================== */
-const PROVINCES = ["تهران", "اصفهان", "فارس", "خراسان رضوی", "آذربایجان شرقی", "خوزستان", "البرز", "مازندران", "گیلان", "کرمان"];
-const SHIPPING_METHODS = [
-  { id: "express", label: "پست پیشتاز", desc: "۲ تا ۳ روز کاری", price: 150000, icon: Truck },
-  { id: "tipax", label: "تیپاکس", desc: "۱ تا ۲ روز کاری", price: 220000, icon: PackageCheck },
-  { id: "courier", label: "پیک اختصاصی (ویژه تهران)", desc: "همان روز، فقط تهران", price: 90000, icon: MapPin },
+const PROVINCES = [
+  "تهران", "اصفهان", "فارس", "خراسان رضوی", "آذربایجان شرقی", "آذربایجان غربی", "خوزستان", "البرز", "مازندران", "گیلان", "کرمان",
+  "خراسان شمالی", "خراسان جنوبی", "سیستان و بلوچستان", "فارس", "کرمانشاه", "یزد", "اردبیل", "قم", "قزوین", "همدان",
+  "مرکزی", "لرستان", "گلستان", "هرمزگان", "کردستان", "زنجان", "بوشهر", "چهارمحال و بختیاری", "سمنان", "ایلام", "کهگیلویه و بویراحمد",
+].filter((v, i, arr) => arr.indexOf(v) === i);
+const SHIPPING_METHODS_DEFAULT = [
+  { id: "express", label: "پست پیشتاز", desc: "۲ تا ۳ روز کاری", price: 150000, iconKey: "truck" },
+  { id: "tipax", label: "تیپاکس", desc: "۱ تا ۲ روز کاری", price: 220000, iconKey: "packageCheck" },
+  { id: "courier", label: "پیک اختصاصی (ویژه تهران)", desc: "همان روز، فقط تهران", price: 90000, iconKey: "mapPin" },
 ];
+const SHIPPING_ICON_MAP = { truck: Truck, packageCheck: PackageCheck, mapPin: MapPin };
+function resolveShippingIcon(key) { return SHIPPING_ICON_MAP[key] || Truck; }
 
-function CheckoutPage({ cart, products, user, currencySettings, theme, rewardsSettings, onBack, onPlaceOrder }) {
+function ReceiptUploadField({ value, onChange, palette }) {
+  const [state, setState] = useState(undefined); // "uploading" | "error" | undefined
+  const [error, setError] = useState("");
+  async function handleFile(file) {
+    if (!file) return;
+    setState("uploading"); setError("");
+    const { url, error: err } = await uploadProductImage(file);
+    if (err) { setState("error"); setError(err); return; }
+    onChange(url); setState(undefined);
+  }
+  return (
+    <div className="flex flex-col gap-2">
+      {value ? (
+        <div className="relative inline-block">
+          <img src={value} alt="رسید پرداخت" className="w-32 h-32 object-cover rounded-2xl border" style={{ borderColor: palette.beige }} />
+          <button type="button" onClick={() => onChange("")} className="absolute -top-2 -left-2 w-6 h-6 rounded-full flex items-center justify-center" style={{ background: palette.ink, color: palette.white }} aria-label="حذف رسید"><X size={13} /></button>
+        </div>
+      ) : (
+        <label className="flex items-center justify-center gap-2 rounded-2xl border-2 border-dashed py-6 text-sm cursor-pointer" style={{ borderColor: state === "error" ? "#C0392B" : palette.beige, color: palette.inkSoft }}>
+          {state === "uploading" ? <span className="w-4 h-4 rounded-full border-2 animate-spin shrink-0" style={{ borderColor: palette.beige, borderTopColor: palette.sageDeep }} /> : <ImagePlus size={16} />}
+          {state === "uploading" ? "در حال آپلود…" : "آپلود تصویر رسید پرداخت"}
+          <input type="file" accept="image/*" className="hidden" disabled={state === "uploading"} onChange={(e) => handleFile(e.target.files && e.target.files[0])} />
+        </label>
+      )}
+      {state === "error" && <p style={{ fontSize: 11.5, color: "#C0392B" }}>{error}</p>}
+    </div>
+  );
+}
+function CheckoutPage({ cart, products, user, currencySettings, theme, rewardsSettings, shippingMethods, paymentSettings, onBack, onPlaceOrder }) {
   const palette = theme;
   const fmt = (n) => formatPrice(n, currencySettings);
   const [form, setForm] = useState({
     firstName: user?.firstName || "", lastName: user?.lastName || "", phone: user?.phone || "", email: user?.email || "",
     province: "", city: "", address: "", postalCode: "", unit: "", notes: "",
   });
-  const [shippingMethod, setShippingMethod] = useState("express");
+  const methods = shippingMethods && shippingMethods.length > 0 ? shippingMethods : SHIPPING_METHODS_DEFAULT;
+  const [shippingMethod, setShippingMethod] = useState(methods[0]?.id || "express");
+  const [receiptImage, setReceiptImage] = useState("");
+  const [transactionRef, setTransactionRef] = useState("");
+  const [receiptError, setReceiptError] = useState("");
   const [placing, setPlacing] = useState(false);
   const [placed, setPlaced] = useState(false);
 
   const cartItems = cart.map((c) => ({ ...c, product: products.find((p) => p.id === c.id) })).filter((c) => c.product);
   const subtotal = cartItems.reduce((s, c) => s + (c.product.salePrice || c.product.price) * c.qty, 0);
-  const shipCost = SHIPPING_METHODS.find((m) => m.id === shippingMethod)?.price || 0;
+  const shipCost = methods.find((m) => m.id === shippingMethod)?.price || 0;
   const total = subtotal + shipCost;
   const earnedPoints = Math.round(subtotal * ((rewardsSettings?.earnRatePct || 0) / 100));
 
   function handlePay(e) {
     e.preventDefault();
     if (cartItems.length === 0) return;
+    if (!receiptImage) { setReceiptError("لطفاً تصویر رسید واریز را آپلود کنید."); return; }
+    setReceiptError("");
     setPlacing(true);
-    setTimeout(() => { setPlacing(false); setPlaced(true); }, 1200);
+    const chosenShip = methods.find((m) => m.id === shippingMethod);
+    const order = {
+      id: "VN" + Date.now().toString().slice(-8),
+      date: new Date().toISOString(),
+      customer: `${form.firstName} ${form.lastName}`.trim(),
+      email: form.email, phone: form.phone,
+      address: `${form.province}، ${form.city}، ${form.address}${form.unit ? "، واحد/پلاک " + form.unit : ""} — کدپستی ${form.postalCode}`,
+      notes: form.notes,
+      items: cartItems.map((c) => ({ name: c.product.name, qty: c.qty, price: c.product.salePrice || c.product.price })),
+      shippingMethod: chosenShip?.label || "", shipCost,
+      status: "در انتظار", paymentMethod: "واریز کارت به کارت", paymentStatus: "در انتظار",
+      receiptImage, transactionRef, rejectionReason: "",
+    };
+    onPlaceOrder(order);
+    setPlacing(false);
+    setPlaced(true);
   }
 
   if (placed) {
@@ -3306,9 +3377,9 @@ function CheckoutPage({ cart, products, user, currencySettings, theme, rewardsSe
       <div dir="rtl" lang="fa" style={{ fontFamily: theme.bodyFont, background: palette.cream, color: palette.ink }} className="min-h-screen w-full flex items-center justify-center p-4">
         <div className="text-center max-w-sm rounded-[2rem] p-10" style={{ background: palette.white, boxShadow: `0 40px 100px -20px ${palette.ink}30` }}>
           <div className="w-16 h-16 rounded-full flex items-center justify-center mx-auto mb-5" style={{ background: palette.sageMist }}><Check size={28} style={{ color: palette.sageDeep }} /></div>
-          <h1 style={{ fontFamily: theme.headingFont, fontSize: 22, color: palette.ink }} className="mb-2">سفارش شما ثبت شد</h1>
-          <p style={{ color: palette.inkSoft, fontSize: 14 }} className="mb-6">جزئیات سفارش به ایمیل شما ارسال می‌شود. از خرید شما سپاسگزاریم 🌿</p>
-          <button onClick={() => onPlaceOrder()} className="rounded-full px-6 py-3 text-sm font-medium" style={{ background: palette.sageDeep, color: palette.white }}>بازگشت به فروشگاه</button>
+          <h1 style={{ fontFamily: theme.headingFont, fontSize: 22, color: palette.ink }} className="mb-2">رسید شما ثبت شد</h1>
+          <p style={{ color: palette.inkSoft, fontSize: 14 }} className="mb-6">سفارش شما پس از بررسی و تایید پرداخت توسط تیم ما نهایی می‌شود و نتیجه از طریق پیامک یا تماس به اطلاع شما می‌رسد. از خرید شما سپاسگزاریم 🌿</p>
+          <button onClick={onBack} className="rounded-full px-6 py-3 text-sm font-medium" style={{ background: palette.sageDeep, color: palette.white }}>بازگشت به فروشگاه</button>
         </div>
       </div>
     );
@@ -3358,8 +3429,8 @@ function CheckoutPage({ cart, products, user, currencySettings, theme, rewardsSe
               <div className="rounded-3xl p-6" style={{ background: palette.white, border: `1px solid ${palette.beige}` }}>
                 <div className="flex items-center gap-2 mb-4"><Truck size={16} style={{ color: palette.sageDeep }} /><p style={{ fontFamily: theme.headingFont, fontSize: 17 }}>روش ارسال</p></div>
                 <div className="flex flex-col gap-2.5">
-                  {SHIPPING_METHODS.map((m) => {
-                    const Icon = m.icon; const active = shippingMethod === m.id;
+                  {methods.map((m) => {
+                    const Icon = resolveShippingIcon(m.iconKey); const active = shippingMethod === m.id;
                     return (
                       <button type="button" key={m.id} onClick={() => setShippingMethod(m.id)} className="flex items-center gap-3 rounded-2xl p-3.5 border text-right transition-all"
                         style={{ borderColor: active ? palette.sageDeep : palette.beige, background: active ? palette.sageMist : palette.white }}>
@@ -3383,8 +3454,25 @@ function CheckoutPage({ cart, products, user, currencySettings, theme, rewardsSe
                 <textarea rows={3} placeholder="مثلاً: ساعت ترجیحی تحویل یا توضیحات ویژه دیگر…" value={form.notes} onChange={(e) => setForm({ ...form, notes: e.target.value })} className="w-full rounded-2xl px-4 py-3 text-sm border outline-none resize-none" style={{ borderColor: palette.beige }} />
               </div>
 
+              <div className="rounded-3xl p-6" style={{ background: palette.white, border: `1px solid ${palette.beige}` }}>
+                <div className="flex items-center gap-2 mb-4"><Wallet size={16} style={{ color: palette.sageDeep }} /><p style={{ fontFamily: theme.headingFont, fontSize: 17 }}>پرداخت — واریز کارت به کارت</p></div>
+                <div className="rounded-2xl p-4 flex flex-col gap-2 mb-4" style={{ background: palette.creamDeep }}>
+                  <div className="flex items-center justify-between"><span style={{ fontSize: 12.5, color: palette.inkSoft }}>شماره کارت</span><span style={{ fontFamily: theme.headingFont, fontSize: 16 }} dir="ltr">{paymentSettings?.cardNumber || "— در پنل ادمین تنظیم نشده —"}</span></div>
+                  <div className="flex items-center justify-between"><span style={{ fontSize: 12.5, color: palette.inkSoft }}>به نام</span><span style={{ fontSize: 13.5 }}>{paymentSettings?.cardHolder || "—"}</span></div>
+                  {paymentSettings?.bankName && <div className="flex items-center justify-between"><span style={{ fontSize: 12.5, color: palette.inkSoft }}>بانک</span><span style={{ fontSize: 13.5 }}>{paymentSettings.bankName}</span></div>}
+                  <div className="flex items-center justify-between pt-2 mt-1 border-t" style={{ borderColor: palette.beige }}><span style={{ fontSize: 12.5, color: palette.inkSoft }}>مبلغ قابل پرداخت</span><span style={{ fontFamily: theme.headingFont, fontSize: 17 }}>{fmt(total)}</span></div>
+                </div>
+                {paymentSettings?.note && <p style={{ fontSize: 12, color: palette.inkSoft }} className="mb-4">{paymentSettings.note}</p>}
+                <FieldLabel palette={palette}>تصویر رسید واریز *</FieldLabel>
+                <ReceiptUploadField value={receiptImage} onChange={(url) => { setReceiptImage(url); if (url) setReceiptError(""); }} palette={palette} />
+                {receiptError && <p style={{ fontSize: 12, color: "#C0392B" }} className="mt-1.5">{receiptError}</p>}
+                <div className="mt-4"><FieldLabel palette={palette}>کد پیگیری تراکنش (اختیاری)</FieldLabel>
+                  <input placeholder="مثلاً ۶ رقم آخر پیگیری بانک" value={transactionRef} onChange={(e) => setTransactionRef(e.target.value)} className="w-full rounded-2xl px-4 py-3 text-sm border outline-none" style={{ borderColor: palette.beige }} dir="ltr" />
+                </div>
+              </div>
+
               <button type="submit" disabled={placing} className="btn-shine lg:hidden rounded-full py-3.5 text-sm font-medium flex items-center justify-center gap-2" style={{ background: palette.sageDeep, color: palette.white }}>
-                <Wallet size={16} /> {placing ? "در حال انتقال به درگاه…" : `پرداخت ${fmt(total)} با زرین‌پال`}
+                <Wallet size={16} /> {placing ? "در حال ثبت…" : "ثبت سفارش برای بررسی"}
               </button>
             </form>
 
@@ -3411,9 +3499,9 @@ function CheckoutPage({ cart, products, user, currencySettings, theme, rewardsSe
                 </div>
               )}
               <button type="button" onClick={handlePay} disabled={placing} className="btn-shine hidden lg:flex rounded-full py-3.5 text-sm font-medium items-center justify-center gap-2 transition-transform hover:-translate-y-0.5" style={{ background: palette.sageDeep, color: palette.white, boxShadow: `0 14px 32px -10px ${palette.sageDeep}88` }}>
-                <Wallet size={16} /> {placing ? "در حال انتقال به درگاه…" : "پرداخت با زرین‌پال"}
+                <Wallet size={16} /> {placing ? "در حال ثبت…" : "ثبت سفارش برای بررسی"}
               </button>
-              <p style={{ fontSize: 10.5, color: palette.inkSoft }} className="text-center">درگاه پرداخت زرین‌پال در این پیش‌نمایش شبیه‌سازی شده و پرداخت واقعی انجام نمی‌شود.</p>
+              <p style={{ fontSize: 10.5, color: palette.inkSoft }} className="text-center">پس از ثبت، سفارش شما توسط تیم ما بررسی و نهایی می‌شود.</p>
             </div>
           </>
         )}
@@ -3816,7 +3904,7 @@ function ReplyModal({ review, onCancel, onSend }) {
 }
 
 /* ---------------- Order details drawer ---------------- */
-function OrderDetailsDrawer({ order, onClose, onSetStatus, onGenerateTracking, currencySettings }) {
+function OrderDetailsDrawer({ order, onClose, onSetStatus, onGenerateTracking, onApprovePayment, onRejectPayment, currencySettings }) {
   const p = ADMIN_PALETTE;
   const fmt = (n) => formatPrice(n, currencySettings);
   if (!order) return null;
@@ -3863,6 +3951,23 @@ function OrderDetailsDrawer({ order, onClose, onSetStatus, onGenerateTracking, c
               ))}
             </div>
           </div>
+          {order.receiptImage && (
+            <div className="rounded-2xl p-4" style={{ background: p.creamDeep }}>
+              <div className="flex items-center justify-between mb-3">
+                <p style={{ fontSize: 13, color: p.ink, fontWeight: 600 }}>رسید واریز مشتری</p>
+                <Badge label={order.paymentStatus} bg={resolveStyle(PAYMENT_STYLE[order.paymentStatus], p).bg} fg={resolveStyle(PAYMENT_STYLE[order.paymentStatus], p).fg} />
+              </div>
+              <a href={order.receiptImage} target="_blank" rel="noreferrer"><img src={order.receiptImage} alt="رسید پرداخت" className="w-full max-w-[220px] rounded-xl border mb-3" style={{ borderColor: p.beige }} /></a>
+              {order.transactionRef && <p style={{ fontSize: 12.5, color: p.inkSoft }} className="mb-1">کد پیگیری: <span dir="ltr">{order.transactionRef}</span></p>}
+              {order.rejectionReason && <p style={{ fontSize: 12.5, color: "#A5453A" }} className="mb-3">دلیل رد: {order.rejectionReason}</p>}
+              {order.paymentStatus === "در انتظار" && (
+                <div className="flex gap-2 mt-2">
+                  <button onClick={() => onApprovePayment(order.id)} className="flex-1 rounded-full py-2.5 text-xs font-medium" style={{ background: p.sageDeep, color: p.white }}>تایید پرداخت</button>
+                  <button onClick={() => onRejectPayment(order.id)} className="flex-1 rounded-full py-2.5 text-xs font-medium border" style={{ borderColor: "#A5453A", color: "#A5453A" }}>رد پرداخت</button>
+                </div>
+              )}
+            </div>
+          )}
           <div><FieldLabel palette={p}>تغییر وضعیت سفارش</FieldLabel>
             <SelectInput palette={p} value={order.status} onChange={(e) => onSetStatus(order.id, e.target.value)}>{ORDER_STATUS_OPTIONS.map((s) => <option key={s} value={s}>{s}</option>)}</SelectInput>
           </div>
@@ -5226,6 +5331,7 @@ function TypographyTab({ theme, setTheme }) {
 ================================================================= */
 function SettingsTab({ products, setProducts, currencySettings, setCurrencySettings, authLinks, setAuthLinks, users, setUsers,
   paymentMethods, setPaymentMethods, zarinpalId, setZarinpalId, shipping, setShipping, freeShipThreshold, setFreeShipThreshold,
+  shippingMethods, setShippingMethods, paymentSettings, setPaymentSettings, notifySettings, setNotifySettings,
   taxRate, setTaxRate, templates, setTemplates, authSettings, setAuthSettings, quizSettings, setQuizSettings, rewardsSettings, setRewardsSettings }) {
   const p = ADMIN_PALETTE;
   const [saved, setSaved] = useState(false);
@@ -5257,6 +5363,7 @@ function SettingsTab({ products, setProducts, currencySettings, setCurrencySetti
   }
 
   function updateShippingRate(i, rate) { setShipping((prev) => prev.map((r, idx) => idx === i ? { ...r, rate: Number(rate) || 0 } : r)); }
+  function updateShippingMethod(i, field, value) { setShippingMethods((prev) => prev.map((m, idx) => idx === i ? { ...m, [field]: field === "price" ? (Number(value) || 0) : value } : m)); }
   function addUser() {
     if (!userDraft.name || !userDraft.email) return;
     setUsers((prev) => [...prev, { ...userDraft, status: "فعال" }]);
@@ -5327,27 +5434,43 @@ function SettingsTab({ products, setProducts, currencySettings, setCurrencySetti
       </div>
 
       <div className="rounded-3xl p-6" style={{ background: p.white, border: `1px solid ${p.beige}` }}>
-        <div className="flex items-center gap-2 mb-2"><CreditCard size={17} style={{ color: p.sageDeep }} /><p style={{ fontFamily: "'Noto Serif Arabic', serif", fontSize: 17, color: p.ink }}>درگاه‌های پرداخت</p></div>
-        <div className="divide-y mb-4" style={{ borderColor: p.creamDeep }}>
-          {Object.keys(paymentMethods).map((m) => <Toggle key={m} palette={p} label={m} on={paymentMethods[m]} onChange={(v) => setPaymentMethods((prev) => ({ ...prev, [m]: v }))} />)}
+        <div className="flex items-center gap-2 mb-2"><CreditCard size={17} style={{ color: p.sageDeep }} /><p style={{ fontFamily: "'Noto Serif Arabic', serif", fontSize: 17, color: p.ink }}>پرداخت — واریز کارت به کارت</p></div>
+        <p style={{ fontSize: 12, color: p.inkSoft }} className="mb-4">مشتری این اطلاعات را در صفحه‌ی تسویه‌حساب می‌بیند، وجه را واریز می‌کند و تصویر رسید را آپلود می‌کند. سفارش پس از تایید شما در تب «سفارش‌ها» نهایی می‌شود.</p>
+        <div className="grid sm:grid-cols-2 gap-4">
+          <div><FieldLabel palette={p}>شماره کارت</FieldLabel><TextInput palette={p} value={paymentSettings.cardNumber} onChange={(e) => setPaymentSettings({ ...paymentSettings, cardNumber: e.target.value })} placeholder="xxxx-xxxx-xxxx-xxxx" dir="ltr" /></div>
+          <div><FieldLabel palette={p}>به نام (صاحب کارت)</FieldLabel><TextInput palette={p} value={paymentSettings.cardHolder} onChange={(e) => setPaymentSettings({ ...paymentSettings, cardHolder: e.target.value })} /></div>
+          <div><FieldLabel palette={p}>نام بانک (اختیاری)</FieldLabel><TextInput palette={p} value={paymentSettings.bankName} onChange={(e) => setPaymentSettings({ ...paymentSettings, bankName: e.target.value })} /></div>
         </div>
-        <div><FieldLabel palette={p}>شناسه پذیرنده زرین‌پال (Merchant ID)</FieldLabel><TextInput palette={p} value={zarinpalId} onChange={(e) => setZarinpalId(e.target.value)} placeholder="xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx" dir="ltr" /></div>
-        <p style={{ fontSize: 11, color: "#A5453A" }} className="mt-2">اتصال واقعی به درگاه‌های بانکی ایرانی و تبدیل خودکار تومان به ریال در این پیش‌نمایش فعال نیست؛ این فیلد فقط برای ذخیره تنظیمات است.</p>
+        <div className="mt-4"><FieldLabel palette={p}>یادداشت زیر اطلاعات پرداخت</FieldLabel><TextArea palette={p} rows={2} value={paymentSettings.note} onChange={(e) => setPaymentSettings({ ...paymentSettings, note: e.target.value })} /></div>
+        <details className="mt-4">
+          <summary className="text-xs cursor-pointer" style={{ color: p.inkSoft }}>درگاه بانکی آنلاین (زرین‌پال) — غیرفعال</summary>
+          <div className="mt-3"><FieldLabel palette={p}>شناسه پذیرنده زرین‌پال (Merchant ID)</FieldLabel><TextInput palette={p} value={zarinpalId} onChange={(e) => setZarinpalId(e.target.value)} placeholder="xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx" dir="ltr" /></div>
+          <p style={{ fontSize: 11, color: p.inkSoft }} className="mt-2">سایت در حال حاضر فقط از واریز کارت‌به‌کارت بالا استفاده می‌کند؛ این فیلد برای اتصال احتمالی یک درگاه در آینده نگه داشته شده و روی سایت اثری ندارد.</p>
+        </details>
       </div>
 
       <div className="rounded-3xl p-6" style={{ background: p.white, border: `1px solid ${p.beige}` }}>
-        <div className="flex items-center gap-2 mb-4"><Truck size={17} style={{ color: p.sageDeep }} /><p style={{ fontFamily: "'Noto Serif Arabic', serif", fontSize: 17, color: p.ink }}>ارسال و مالیات</p></div>
-        <div className="grid sm:grid-cols-2 gap-4 mb-4">
+        <div className="flex items-center gap-2 mb-1"><Bell size={17} style={{ color: p.sageDeep }} /><p style={{ fontFamily: "'Noto Serif Arabic', serif", fontSize: 17, color: p.ink }}>اعلان سفارش (پیامک)</p></div>
+        <p style={{ fontSize: 12, color: p.inkSoft }} className="mb-4">برای ارسال واقعی پیامک، باید یک وب‌هوک از یک سرویس پیامکی (مثل ملی‌پیامک، کاوه‌نگار) یا ابزار اتوماسیون (مثل Make یا Zapier) بسازید و آدرسش را اینجا بگذارید. وقتی سفارش جدید ثبت می‌شود یا شما رسید را تایید/رد می‌کنید، سایت اطلاعات سفارش را به این آدرس ارسال می‌کند تا آن سرویس پیامک را بفرستد. گذاشتن کلید سرویس پیامکی مستقیم داخل کد سایت امن نیست، برای همین این مرحله‌ی واسط لازم است.</p>
+        <div><FieldLabel palette={p}>آدرس وب‌هوک</FieldLabel><TextInput palette={p} value={notifySettings.webhookUrl} onChange={(e) => setNotifySettings({ ...notifySettings, webhookUrl: e.target.value })} placeholder="https://..." dir="ltr" /></div>
+      </div>
+
+      <div className="rounded-3xl p-6" style={{ background: p.white, border: `1px solid ${p.beige}` }}>
+        <div className="flex items-center gap-2 mb-4"><Truck size={17} style={{ color: p.sageDeep }} /><p style={{ fontFamily: "'Noto Serif Arabic', serif", fontSize: 17, color: p.ink }}>روش‌های ارسال و مالیات</p></div>
+        <div className="grid sm:grid-cols-2 gap-4 mb-5">
           <div><FieldLabel palette={p}>آستانه ارسال رایگان (تومان)</FieldLabel><TextInput palette={p} type="number" step="1000" value={freeShipThreshold} onChange={(e) => setFreeShipThreshold(e.target.value)} /></div>
           <div><FieldLabel palette={p}>درصد مالیات</FieldLabel><TextInput palette={p} type="number" value={taxRate} onChange={(e) => setTaxRate(e.target.value)} /></div>
         </div>
-        <FieldLabel palette={p}>نرخ ارسال منطقه‌ای (تومان)</FieldLabel>
-        <div className="flex flex-col gap-2">
-          {shipping.map((r, i) => (
-            <div key={r.region} className="flex items-center gap-3">
-              <span className="flex-1 text-sm" style={{ color: p.ink }}>{r.region}</span>
-              <input type="number" value={r.rate} onChange={(e) => updateShippingRate(i, e.target.value)} className="w-32 rounded-xl px-3 py-1.5 text-sm border outline-none" style={{ borderColor: p.beige, color: p.ink }} />
-              <span style={{ fontSize: 12, color: p.inkSoft }}>تومان</span>
+        <FieldLabel palette={p}>هزینه هر روش ارسال (تومان) — نوع‌ها ثابت، مبلغ هر زمان قابل تغییر</FieldLabel>
+        <div className="flex flex-col gap-2.5 mt-1">
+          {shippingMethods.map((m, i) => (
+            <div key={m.id} className="flex flex-col sm:flex-row sm:items-center gap-2 rounded-2xl p-3" style={{ background: p.creamMist || p.creamDeep }}>
+              <input value={m.label} onChange={(e) => updateShippingMethod(i, "label", e.target.value)} className="flex-1 rounded-xl px-3 py-2 text-sm border outline-none bg-white" style={{ borderColor: p.beige, color: p.ink }} />
+              <input value={m.desc} onChange={(e) => updateShippingMethod(i, "desc", e.target.value)} className="flex-1 rounded-xl px-3 py-2 text-sm border outline-none bg-white" style={{ borderColor: p.beige, color: p.inkSoft }} placeholder="توضیح کوتاه (مثلاً ۲ تا ۳ روز کاری)" />
+              <div className="flex items-center gap-2 shrink-0">
+                <input type="number" value={m.price} onChange={(e) => updateShippingMethod(i, "price", e.target.value)} className="w-28 rounded-xl px-3 py-2 text-sm border outline-none bg-white" style={{ borderColor: p.beige, color: p.ink }} />
+                <span style={{ fontSize: 12, color: p.inkSoft }}>تومان</span>
+              </div>
             </div>
           ))}
         </div>
@@ -5590,7 +5713,8 @@ function AdminDashboard({
   footer, setFooter, banner, setBanner, hero, setHero, faqs, setFaqs, welcomeModal, setWelcomeModal, authSettings, setAuthSettings,
   freeShipThreshold, setFreeShipThreshold, ingredientLibrary, setIngredientLibrary, quizSettings, setQuizSettings,
   quizQuestions, setQuizQuestions, quizResults, setQuizResults, rewardsSettings, setRewardsSettings,
-  customPages, setCustomPages, bundles, setBundles, glowSlider, setGlowSlider, about, setAbout, sectionCopy, setSectionCopy, onExit, onLogout,
+  customPages, setCustomPages, bundles, setBundles, glowSlider, setGlowSlider, about, setAbout, sectionCopy, setSectionCopy,
+  orders, setOrders, shippingMethods, setShippingMethods, paymentSettings, setPaymentSettings, notifySettings, setNotifySettings, onExit, onLogout,
 }) {
   const p = ADMIN_PALETTE;
   const [tab, setTab] = useState("overview");
@@ -5604,7 +5728,6 @@ function AdminDashboard({
     });
     return () => { cancelled = true; };
   }, []);
-  const [orders, setOrders] = useState([]);
   const [orderFilter, setOrderFilter] = useState("همه");
   const [openOrder, setOpenOrder] = useState(null);
   const [replyingReview, setReplyingReview] = useState(null);
@@ -5803,6 +5926,19 @@ function AdminDashboard({
     setOrders((prev) => prev.map((o) => (o.id === id ? { ...o, trackingNumber: num } : o)));
     setOpenOrder((prev) => (prev && prev.id === id ? { ...prev, trackingNumber: num } : prev));
   }
+  function approveOrderPayment(id) {
+    setOrders((prev) => prev.map((o) => (o.id === id ? { ...o, paymentStatus: "پرداخت‌شده" } : o)));
+    setOpenOrder((prev) => (prev && prev.id === id ? { ...prev, paymentStatus: "پرداخت‌شده" } : prev));
+    const order = orders.find((o) => o.id === id);
+    if (order) sendNotification(notifySettings.webhookUrl, { type: "order_approved", orderId: order.id, customer: order.customer, phone: order.phone });
+  }
+  function rejectOrderPayment(id) {
+    const reason = window.prompt("دلیل رد رسید (اختیاری، برای اطلاع مشتری):", "") || "";
+    setOrders((prev) => prev.map((o) => (o.id === id ? { ...o, paymentStatus: "ناموفق", rejectionReason: reason } : o)));
+    setOpenOrder((prev) => (prev && prev.id === id ? { ...prev, paymentStatus: "ناموفق", rejectionReason: reason } : prev));
+    const order = orders.find((o) => o.id === id);
+    if (order) sendNotification(notifySettings.webhookUrl, { type: "order_rejected", orderId: order.id, customer: order.customer, phone: order.phone, reason });
+  }
 
   /* ---- review handlers ---- */
   function setReviewStatus(id, status) { setReviews((prev) => prev.map((r) => (r.id === id ? { ...r, status } : r))); }
@@ -5952,6 +6088,7 @@ function AdminDashboard({
             <SettingsTab products={products} setProducts={setProducts} currencySettings={currencySettings} setCurrencySettings={setCurrencySettings}
               authLinks={authLinks} setAuthLinks={setAuthLinks} users={users} setUsers={setUsers} paymentMethods={paymentMethods} setPaymentMethods={setPaymentMethods}
               zarinpalId={zarinpalId} setZarinpalId={setZarinpalId} shipping={shipping} setShipping={setShipping} freeShipThreshold={freeShipThreshold} setFreeShipThreshold={setFreeShipThreshold}
+              shippingMethods={shippingMethods} setShippingMethods={setShippingMethods} paymentSettings={paymentSettings} setPaymentSettings={setPaymentSettings} notifySettings={notifySettings} setNotifySettings={setNotifySettings}
               taxRate={taxRate} setTaxRate={setTaxRate} templates={templates} setTemplates={setTemplates} authSettings={authSettings} setAuthSettings={setAuthSettings}
               quizSettings={quizSettings} setQuizSettings={setQuizSettings} rewardsSettings={rewardsSettings} setRewardsSettings={setRewardsSettings} />
           )}
@@ -5965,7 +6102,7 @@ function AdminDashboard({
       {bundleModalOpen && <BundleFormModal draft={bundleDraft} setDraft={setBundleDraft} onCancel={() => setBundleModalOpen(false)} onSave={saveBundle} isEdit={editingBundleId != null} products={products} />}
       {couponModalOpen && <CouponFormModal draft={couponDraft} setDraft={setCouponDraft} onCancel={() => setCouponModalOpen(false)} onSave={saveCoupon} categories={categories} />}
       {reviewModalOpen && <ReviewFormModal draft={reviewDraft} setDraft={setReviewDraft} onCancel={() => setReviewModalOpen(false)} onSave={saveReview} />}
-      {openOrder && <OrderDetailsDrawer order={orders.find((o) => o.id === openOrder.id) || openOrder} onClose={() => setOpenOrder(null)} onSetStatus={setOrderStatus} onGenerateTracking={generateTracking} currencySettings={currencySettings} />}
+      {openOrder && <OrderDetailsDrawer order={orders.find((o) => o.id === openOrder.id) || openOrder} onClose={() => setOpenOrder(null)} onSetStatus={setOrderStatus} onGenerateTracking={generateTracking} onApprovePayment={approveOrderPayment} onRejectPayment={rejectOrderPayment} currencySettings={currencySettings} />}
       {replyingReview && <ReplyModal review={replyingReview} onCancel={() => setReplyingReview(null)} onSend={() => setReplyingReview(null)} />}
     </div>
   );
@@ -6142,6 +6279,10 @@ function AppShell({ remoteContent }) {
   const [products, setProducts] = useSyncedState("products", asArray(remoteContent.products));
   const [categories, setCategories] = useSyncedState("categories", asArray(remoteContent.categories));
   const [brands, setBrands] = useSyncedState("brands", asArray(remoteContent.brands));
+  const [orders, setOrders] = useSyncedState("orders", asArray(remoteContent.orders));
+  const [shippingMethods, setShippingMethods] = useSyncedState("shippingMethods", Array.isArray(remoteContent.shippingMethods) && remoteContent.shippingMethods.length ? remoteContent.shippingMethods : SHIPPING_METHODS_DEFAULT);
+  const [paymentSettings, setPaymentSettings] = useSyncedState("paymentSettings", remoteContent.paymentSettings || PAYMENT_SETTINGS_DEFAULT);
+  const [notifySettings, setNotifySettings] = useSyncedState("notifySettings", remoteContent.notifySettings || NOTIFY_SETTINGS_DEFAULT);
   const [reviews, setReviews] = useSyncedState("reviews", asArray(remoteContent.reviews));
   const [currencySettings, setCurrencySettings] = useSyncedState("currencySettings", remoteContent.currencySettings ?? { currency: "toman", currencyLabel: "تومان", digitStyle: "en" });
   const [theme, setTheme] = useSyncedState("theme", remoteContent.theme ?? DEFAULT_THEME);
@@ -6244,7 +6385,13 @@ function AppShell({ remoteContent }) {
         element={!user ? null : (
           <CheckoutPage
             cart={cart} products={products} user={user} currencySettings={currencySettings} theme={theme} rewardsSettings={rewardsSettings}
-            onBack={goStore} onPlaceOrder={() => { setCart([]); goStore(); }}
+            shippingMethods={shippingMethods} paymentSettings={paymentSettings}
+            onBack={goStore}
+            onPlaceOrder={(order) => {
+              setOrders((prev) => [order, ...prev]);
+              sendNotification(notifySettings.webhookUrl, { type: "new_order", orderId: order.id, customer: order.customer, phone: order.phone, total: orderTotal(order) + order.shipCost });
+              setCart([]);
+            }}
           />
         )}
       />
@@ -6253,6 +6400,8 @@ function AppShell({ remoteContent }) {
         path="/admin"
         element={!adminAuthed ? null : (
           <AdminDashboard
+            orders={orders} setOrders={setOrders} shippingMethods={shippingMethods} setShippingMethods={setShippingMethods}
+            paymentSettings={paymentSettings} setPaymentSettings={setPaymentSettings} notifySettings={notifySettings} setNotifySettings={setNotifySettings}
             products={products} setProducts={setProducts} categories={categories} setCategories={setCategories} brands={brands} setBrands={setBrands}
             reviews={reviews} setReviews={setReviews} currencySettings={currencySettings} setCurrencySettings={setCurrencySettings}
             theme={theme} setTheme={setTheme} layout={layout} setLayout={setLayout} homeSections={homeSections} setHomeSections={setHomeSections}
