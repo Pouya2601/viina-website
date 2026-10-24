@@ -560,21 +560,27 @@ async function checkSupabaseWriteAccess() {
    a bare filename string (which isn't a usable image reference at
    all). See supabase/schema.sql for the bucket + storage policies
    this depends on. */
-async function uploadProductImage(file) {
+async function uploadProductImage(file, bucket = "products") {
   if (!file) return { url: null, error: "فایلی انتخاب نشده است." };
   if (!file.type || !file.type.startsWith("image/")) return { url: null, error: "فقط فایل تصویری مجاز است." };
   if (file.size > 5 * 1024 * 1024) return { url: null, error: "حجم تصویر نباید بیشتر از ۵ مگابایت باشد." };
   const ext = (file.name.split(".").pop() || "jpg").toLowerCase().replace(/[^a-z0-9]/g, "") || "jpg";
   const path = `${Date.now()}-${Math.random().toString(36).slice(2, 8)}.${ext}`;
   try {
-    const { error: uploadError } = await supabase.storage.from("products").upload(path, file, { cacheControl: "3600", upsert: false });
+    const { error: uploadError } = await supabase.storage.from(bucket).upload(path, file, { cacheControl: "3600", upsert: false });
     if (uploadError) return { url: null, error: uploadError.message };
-    const { data } = supabase.storage.from("products").getPublicUrl(path);
+    const { data } = supabase.storage.from(bucket).getPublicUrl(path);
     return { url: data?.publicUrl || null, error: data?.publicUrl ? null : "دریافت آدرس عمومی تصویر ناموفق بود." };
   } catch (err) {
     return { url: null, error: err.message || "آپلود تصویر با خطا مواجه شد." };
   }
 }
+/* Payment receipts are uploaded by guest shoppers who are never
+   signed in to Supabase Auth, so they must go to their own bucket
+   with its own looser "anyone can upload" policy — the "products"
+   bucket deliberately only allows signed-in admins to write, and that
+   must stay true for product photos. See supabase/schema.sql. */
+async function uploadReceiptImage(file) { return uploadProductImage(file, "receipts"); }
 
 const DEFAULT_CUSTOM_PAGES = [
   {
@@ -3305,7 +3311,7 @@ function ReceiptUploadField({ value, onChange, palette }) {
   async function handleFile(file) {
     if (!file) return;
     setState("uploading"); setError("");
-    const { url, error: err } = await uploadProductImage(file);
+    const { url, error: err } = await uploadReceiptImage(file);
     if (err) { setState("error"); setError(err); return; }
     onChange(url); setState(undefined);
   }
