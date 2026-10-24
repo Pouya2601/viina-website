@@ -2846,7 +2846,7 @@ function Storefront({ products, categories, reviews, currencySettings, theme, la
             {cartItems.length > 0 && (
               <div className="px-6 py-5 border-t" style={{ borderColor: palette.beige }}>
                 <div className="flex items-center justify-between mb-4"><span style={{ color: palette.inkSoft, fontSize: 14 }}>جمع جزء</span><span style={{ ...fontDisplay, fontSize: 20, color: palette.ink }}>{fmt(subtotal)}</span></div>
-                <button onClick={() => { setCartOpen(false); user ? onGoCheckout() : onGoAuth(); }} className="btn-shine w-full rounded-full py-3.5 text-sm font-medium" style={{ background: palette.sageDeep, color: palette.white }}>تسویه‌حساب</button>
+                <button onClick={() => { setCartOpen(false); onGoCheckout(); }} className="btn-shine w-full rounded-full py-3.5 text-sm font-medium" style={{ background: palette.sageDeep, color: palette.white }}>تسویه‌حساب</button>
               </div>
             )}
           </div>
@@ -6315,10 +6315,6 @@ function AppShell({ remoteContent }) {
      never stored as a readable row in site_content. */
   const [adminAuthed, setAdminAuthed] = useState(false);
 
-  useEffect(() => {
-    if (location.pathname === "/checkout" && !user) goAuthThenCheckout();
-  }, [location.pathname, user]);
-
   /* Real admin session persistence via Supabase Auth — it keeps its
      own token in the browser's localStorage, so a page refresh (or
      coming back tomorrow) keeps the admin signed in on the deployed
@@ -6382,7 +6378,7 @@ function AppShell({ remoteContent }) {
       <Route path="/auth" element={<AuthPage theme={theme} authSettings={authSettings} onLogin={handleLogin} onBack={goStore} />} />
       <Route
         path="/checkout"
-        element={!user ? null : (
+        element={
           <CheckoutPage
             cart={cart} products={products} user={user} currencySettings={currencySettings} theme={theme} rewardsSettings={rewardsSettings}
             shippingMethods={shippingMethods} paymentSettings={paymentSettings}
@@ -6393,7 +6389,7 @@ function AppShell({ remoteContent }) {
               setCart([]);
             }}
           />
-        )}
+        }
       />
       <Route path="/viina-admin-portal" element={<AdminLoginPage onSuccess={handleAdminLoginSuccess} onBack={goStore} />} />
       <Route
