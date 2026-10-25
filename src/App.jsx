@@ -4117,7 +4117,7 @@ function OverviewTab({ products, categories, orders, currencySettings, onQuickAd
       <div className="grid lg:grid-cols-2 gap-5">
         <div className="rounded-3xl overflow-hidden" style={{ background: p.white, border: `1px solid ${p.beige}` }}>
           <p style={{ fontFamily: "'Noto Serif Arabic', serif", fontSize: 17, color: p.ink }} className="px-6 pt-5 pb-3">سفارش‌های اخیر</p>
-          {orders.length === 0 ? <div className="px-6 pb-6"><EmptyState compact icon={Inbox} title="هنوز سفارشی ثبت نشده است" palette={p} /></div> : <OrdersTable orders={orders.slice(0, 4)} compact currencySettings={currencySettings} />}
+          {orders.length === 0 ? <div className="px-6 pb-6"><EmptyState compact icon={Inbox} title="هنوز سفارشی ثبت نشده است" palette={p} /></div> : <div className="overflow-x-auto"><OrdersTable orders={orders.slice(0, 4)} compact currencySettings={currencySettings} /></div>}
         </div>
         <div className="rounded-3xl p-5 md:p-6" style={{ background: p.white, border: `1px solid ${p.beige}` }}>
           <p style={{ fontFamily: "'Noto Serif Arabic', serif", fontSize: 17, color: p.ink }} className="mb-4">محصولات پرفروش</p>
@@ -6078,7 +6078,7 @@ function AdminDashboard({
                       <button key={f} onClick={() => setOrderFilter(f)} className="rounded-full px-4 py-2 text-sm" style={{ background: orderFilter === f ? p.sageDeep : p.white, color: orderFilter === f ? p.white : p.inkSoft, border: `1px solid ${orderFilter === f ? p.sageDeep : p.beige}` }}>{f}</button>
                     ))}
                   </div>
-                  <div className="rounded-3xl overflow-hidden" style={{ background: p.white, border: `1px solid ${p.beige}` }}><OrdersTable orders={visibleOrders} setStatus={setOrderStatus} onOpenDetails={setOpenOrder} currencySettings={currencySettings} /></div>
+                  <div className="rounded-3xl overflow-hidden" style={{ background: p.white, border: `1px solid ${p.beige}` }}><div className="overflow-x-auto"><OrdersTable orders={visibleOrders} setStatus={setOrderStatus} onOpenDetails={setOpenOrder} currencySettings={currencySettings} /></div></div>
                 </>
               )}
             </div>
