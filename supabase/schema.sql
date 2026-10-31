@@ -92,3 +92,50 @@ create policy "Only signed-in admins can delete product images"
   for delete
   to authenticated
   using (bucket_id = 'products');
+
+-- ============================================================
+-- Storage bucket for payment receipts uploaded by shoppers at
+-- checkout (see uploadReceiptImage() in src/App.jsx). Shoppers are
+-- never signed in to Supabase Auth, so — unlike the 'products'
+-- bucket above — anyone (anon) must be allowed to upload here.
+-- Public so the admin panel can show the receipt image; nobody
+-- (not even admins, via the client) can update/delete a receipt,
+-- since it's evidence of what the customer actually sent.
+-- ============================================================
+insert into storage.buckets (id, name, public)
+values ('receipts', 'receipts', true)
+on conflict (id) do update set public = true;
+
+drop policy if exists "Public can view payment receipts" on storage.objects;
+create policy "Public can view payment receipts"
+  on storage.objects
+  for select
+  to anon, authenticated
+  using (bucket_id = 'receipts');
+
+drop policy if exists "Anyone can upload a payment receipt" on storage.objects;
+create policy "Anyone can upload a payment receipt"
+  on storage.objects
+  for insert
+  to anon, authenticated
+  with check (bucket_id = 'receipts');
+
+-- ============================================================
+-- Phone OTP codes (login verification, sent via sms.ir — see the
+-- send-otp / verify-otp Edge Functions). Only the hash is stored,
+-- never the plain code. No RLS policies are defined on purpose: this
+-- table has no anon/authenticated grants at all, so only the Edge
+-- Functions (which use the service-role key and bypass RLS) can ever
+-- read or write it — the browser can't touch it directly.
+-- ============================================================
+create table if not exists otp_codes (
+  id bigint generated always as identity primary key,
+  phone text not null,
+  code_hash text not null,
+  expires_at timestamptz not null,
+  attempts int not null default 0,
+  verified boolean not null default false,
+  created_at timestamptz not null default now()
+);
+alter table otp_codes enable row level security;
+create index if not exists otp_codes_phone_created_idx on otp_codes (phone, created_at desc);
