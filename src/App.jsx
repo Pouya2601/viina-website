@@ -260,6 +260,19 @@ const ORDER_STATUS_OPTIONS = ["در انتظار", "در حال پردازش", "
 const PAYMENT_STATUS_OPTIONS = ["پرداخت‌شده", "در انتظار", "ناموفق"];
 const REVIEW_STATUS_OPTIONS = ["تأیید شده", "در انتظار بررسی", "رد شده"];
 
+/* Calls one of our Supabase Edge Functions (send-otp, verify-otp,
+   send-order-sms) — this is how the site reaches sms.ir without ever
+   putting the sms.ir API key in the browser. See supabase/functions/
+   for the server-side code and what each one expects. */
+async function callEdgeFunction(name, payload) {
+  try {
+    const { data, error } = await supabase.functions.invoke(name, { body: payload });
+    if (error) return { ok: false, message: error.message || "خطا در برقراری ارتباط با سرور." };
+    return data || { ok: true };
+  } catch (err) {
+    return { ok: false, message: err.message || "خطا در برقراری ارتباط با سرور." };
+  }
+}
 const PAYMENT_SETTINGS_DEFAULT = { bankName: "", cardNumber: "", cardHolder: "", note: "لطفاً پس از واریز، تصویر رسید را در همین صفحه آپلود کنید." };
 const NOTIFY_SETTINGS_DEFAULT = { webhookUrl: "" };
 /* Fire-and-forget: POSTs an event to the admin's own webhook URL (a
@@ -3039,15 +3052,22 @@ function AuthPage({ theme, authSettings, onLogin, onBack }) {
   const [form, setForm] = useState({ firstName: "", lastName: "", phone: "", password: "" });
   const mouse = useMousePosition(true);
 
-  /* phone + OTP step. No real SMS gateway exists in this artifact
-     (same honesty note as the simulated Zarinpal step in checkout),
-     so verification is simulated against a fixed demo code. */
-  const DEMO_OTP = "1234";
+  /* phone + OTP step, sent for real via the send-otp / verify-otp
+     Supabase Edge Functions (sms.ir underneath) — see supabase/functions/. */
   const [authStep, setAuthStep] = useState("form"); // "form" | "otp"
   const [otp, setOtp] = useState("");
   const [otpError, setOtpError] = useState(false);
+  const [otpErrorMsg, setOtpErrorMsg] = useState("");
   const [otpVerifying, setOtpVerifying] = useState(false);
+  const [sendingOtp, setSendingOtp] = useState(false);
+  const [sendOtpError, setSendOtpError] = useState("");
   const otpRefs = useRef([]);
+  async function requestOtp() {
+    setSendingOtp(true); setSendOtpError("");
+    const res = await callEdgeFunction("send-otp", { phone: form.phone });
+    setSendingOtp(false);
+    return res;
+  }
 
   function isValidIranPhone(v) { return /^09\d{9}$/.test(v); }
 
@@ -3070,17 +3090,18 @@ function AuthPage({ theme, authSettings, onLogin, onBack }) {
   useEffect(() => {
     if (authStep !== "otp" || otp.length !== 4 || otpVerifying) return;
     setOtpVerifying(true);
-    setTimeout(() => {
-      if (otp === DEMO_OTP) {
+    callEdgeFunction("verify-otp", { phone: form.phone, code: otp }).then((res) => {
+      if (res.ok) {
         setExcited(true);
         setTimeout(finishLogin, 400);
       } else {
         setOtpError(true);
+        setOtpErrorMsg(res.message || "");
         setOtp("");
         otpRefs.current[0]?.focus();
         setOtpVerifying(false);
       }
-    }, 400);
+    });
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [otp, authStep]);
 
@@ -3096,11 +3117,14 @@ function AuthPage({ theme, authSettings, onLogin, onBack }) {
     setSurprised(true);
     setTimeout(() => setSurprised(false), 750);
   }
-  function handleSubmit(e) {
+  async function handleSubmit(e) {
     e.preventDefault();
     if (!isValidIranPhone(form.phone)) return;
     setExcited(true);
-    setTimeout(() => { setExcited(false); setAuthStep("otp"); }, 350);
+    const res = await requestOtp();
+    setExcited(false);
+    if (!res.ok) { setSendOtpError(res.message || "ارسال پیامک ناموفق بود. دوباره تلاش کنید."); return; }
+    setAuthStep("otp");
   }
 
   const isMinimal = authSettings.backgroundStyle === "minimal";
@@ -3200,13 +3224,14 @@ function AuthPage({ theme, authSettings, onLogin, onBack }) {
                   <p style={{ fontSize: 11.5, color: "#A5453A" }} className="-mt-2">شماره موبایل باید ۱۱ رقم و با ۰۹ شروع شود.</p>
                 )}
                 {mode === "login" && <a href="#" className="self-end text-xs underline underline-offset-4" style={{ color: palette.sageDeep }}>رمز عبور را فراموش کرده‌اید؟</a>}
+                {sendOtpError && <p style={{ fontSize: 12, color: "#C0392B" }} className="-mt-1">{sendOtpError}</p>}
 
                 <button
-                  type="submit" onMouseEnter={() => setExcited(true)} onMouseLeave={() => setExcited(false)}
+                  type="submit" disabled={sendingOtp} onMouseEnter={() => setExcited(true)} onMouseLeave={() => setExcited(false)}
                   className="btn-shine rounded-full py-3.5 text-sm font-medium mt-2 transition-transform duration-300 hover:-translate-y-0.5"
                   style={{ background: palette.sageDeep, color: palette.white, boxShadow: `0 14px 32px -10px ${palette.sageDeep}88` }}
                 >
-                  {mode === "login" ? "دریافت کد تایید" : "ثبت‌نام و دریافت کد تایید"}
+                  {sendingOtp ? "در حال ارسال پیامک…" : mode === "login" ? "دریافت کد تایید" : "ثبت‌نام و دریافت کد تایید"}
                 </button>
               </form>
 
@@ -3272,11 +3297,12 @@ function AuthPage({ theme, authSettings, onLogin, onBack }) {
               </div>
 
               {otpError && (
-                <p style={{ fontSize: 12.5, color: "#C0392B" }} className="mb-2 flex items-center gap-1.5"><AlertTriangle size={13} /> کد وارد شده اشتباه است، دوباره تلاش کنید.</p>
+                <p style={{ fontSize: 12.5, color: "#C0392B" }} className="mb-2 flex items-center gap-1.5"><AlertTriangle size={13} /> {otpErrorMsg || "کد وارد شده اشتباه است، دوباره تلاش کنید."}</p>
               )}
               {otpVerifying && !otpError && <p style={{ fontSize: 12.5, color: palette.inkSoft }} className="mb-2">در حال بررسی کد…</p>}
+              {sendOtpError && <p style={{ fontSize: 12, color: "#C0392B" }} className="mb-2">{sendOtpError}</p>}
 
-              <button type="button" onClick={() => { setOtp(""); setOtpError(false); }} className="text-xs underline underline-offset-4 mt-3" style={{ color: palette.sageDeep }}>ارسال مجدد کد</button>
+              <button type="button" disabled={sendingOtp} onClick={async () => { setOtp(""); setOtpError(false); const res = await requestOtp(); if (!res.ok) setSendOtpError(res.message || "ارسال پیامک ناموفق بود."); }} className="text-xs underline underline-offset-4 mt-3" style={{ color: palette.sageDeep }}>{sendingOtp ? "در حال ارسال…" : "ارسال مجدد کد"}</button>
             </div>
           )}
         </div>
@@ -3374,6 +3400,7 @@ function CheckoutPage({ cart, products, user, currencySettings, theme, rewardsSe
       receiptImage, transactionRef, rejectionReason: "",
     };
     onPlaceOrder(order);
+    callEdgeFunction("send-order-sms", { phone: order.phone, orderId: order.id }); // fire-and-forget; a failed SMS shouldn't block the confirmation screen
     setPlacing(false);
     setPlaced(true);
   }
